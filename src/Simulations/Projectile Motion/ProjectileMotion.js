@@ -51,6 +51,8 @@ export default function ProjectileMotion() {
   const [ghostTrails, setGhostTrails] = useState([]);
   const [apexData, setApexData] = useState(null);
   const [landingData, setLandingData] = useState(null);
+  const [timeSeriesData, setTimeSeriesData] = useState([]);
+  const [activeGraphSubfilter, setActiveGraphSubfilter] = useState('all'); // 'all' | 'x' | 'y' | 'v' | 'vy'
 
   // Target Challenge Mode
   const [showTarget, setShowTarget] = useState(true);
@@ -165,6 +167,15 @@ export default function ProjectileMotion() {
       hasHitTarget: false,
     });
     setCurrentTrail([{ x: cannonPos.x, y: cannonPos.y }]);
+    setTimeSeriesData([
+      {
+        t: 0,
+        x: cannonPos.x,
+        y: cannonPos.y,
+        v: initialSpeed,
+        vy: v0y,
+      },
+    ]);
     setApexData(null);
     setLandingData(null);
     setIsHitSplash(false);
@@ -214,7 +225,7 @@ export default function ProjectileMotion() {
     }
   };
 
-  // Step Simulation Forward (Numerical Euler Step)
+  // Step Simulation Forward (Symplectic 2nd-Order Midpoint Integration)
   const stepPhysics = useCallback(
     (dt) => {
       setFlightState((prev) => {
@@ -226,98 +237,96 @@ export default function ProjectileMotion() {
 
         if (airDragEnabled && currentV > 0.001) {
           const dragForce = 0.5 * dragCoeff * currentV * currentV;
-          const dragAx = -(dragForce / mass) * (prev.vx / currentV);
-          const dragAy = -(dragForce / mass) * (prev.vy / currentV);
-          ax += dragAx;
-          ay += dragAy;
+          ax -= (dragForce / mass) * (prev.vx / currentV);
+          ay -= (dragForce / mass) * (prev.vy / currentV);
         }
 
-        const nextVx = prev.vx + ax * dt;
-        const nextVy = prev.vy + ay * dt;
-        const nextX = prev.x + prev.vx * dt;
-        const nextY = prev.y + prev.vy * dt;
+        // 2nd Order Symplectic Midpoint Integration (Zero Energy Drift in Vacuum)
+        const midVx = prev.vx + 0.5 * ax * dt;
+        const midVy = prev.vy + 0.5 * ay * dt;
+
+        let nextX = prev.x + midVx * dt;
+        let nextY = prev.y + midVy * dt;
+        let nextVx = prev.vx + ax * dt;
+        let nextVy = prev.vy + ay * dt;
+        let nextT = simTime + dt;
 
         // Check Apex (when vy crosses 0 from positive to negative)
         if (prev.vy >= 0 && nextVy <= 0) {
-          setApexData({ x: nextX, y: nextY, time: simTime + dt });
+          setApexData({ x: nextX, y: nextY, time: nextT });
         }
+
+        let isLanded = false;
+        let hit = prev.hasHitTarget;
 
         // Ground Collision (if ground platform is enabled)
         if (groundEnabled && nextY <= 0) {
+          // Exact ground intersection time interpolation
+          const fraction = prev.y > 0 && nextY < 0 ? prev.y / (prev.y - nextY) : 1;
+          const impactDt = dt * fraction;
+          nextT = simTime + impactDt;
+          nextX = prev.x + midVx * impactDt;
+          nextY = 0;
+          nextVx = prev.vx + ax * impactDt;
+          nextVy = prev.vy + ay * impactDt;
+          isLanded = true;
           setIsRunning(false);
-          const landingX = nextX;
-          setLandingData({ x: landingX, time: simTime + dt });
+          setLandingData({ x: nextX, time: nextT });
 
-          // Check Target Hit (if target is enabled)
-          let hit = false;
           if (showTarget) {
             const distToTarget = Math.sqrt(
-              Math.pow(landingX - targetPos.x, 2) + Math.pow(0 - targetPos.y, 2)
+              Math.pow(nextX - targetPos.x, 2) + Math.pow(0 - targetPos.y, 2)
             );
-            hit = distToTarget <= targetRadius;
-            if (hit) {
+            if (distToTarget <= targetRadius) {
+              hit = true;
               setIsHitSplash(true);
               setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
             }
           }
-
-          return {
-            x: landingX,
-            y: 0,
-            vx: 0,
-            vy: 0,
-            isLanded: true,
-            hasHitTarget: hit,
-          };
-        }
-
-        // Out of Bounds check (when ground platform is disabled)
-        if (!groundEnabled && (nextY < -250 || Math.abs(nextX) > 400 || simTime > 30)) {
+        } else if (!groundEnabled && (nextY < -250 || Math.abs(nextX) > 400 || nextT > 30)) {
+          isLanded = true;
           setIsRunning(false);
-          setLandingData({ x: nextX, time: simTime + dt });
-          return {
-            x: nextX,
-            y: nextY,
-            vx: nextVx,
-            vy: nextVy,
-            isLanded: true,
-            hasHitTarget: prev.hasHitTarget,
-          };
-        }
-
-        // Target Mid-Air Collision (if target is enabled)
-        let hitMidAir = prev.hasHitTarget;
-        if (showTarget && !hitMidAir) {
-          const distToTargetCenter = Math.sqrt(
-            Math.pow(nextX - targetPos.x, 2) + Math.pow(nextY - targetPos.y, 2)
-          );
+          setLandingData({ x: nextX, time: nextT });
+        } else if (showTarget && !hit) {
+          const distToTargetCenter = Math.hypot(nextX - targetPos.x, nextY - targetPos.y);
           if (distToTargetCenter <= targetRadius) {
-            hitMidAir = true;
+            hit = true;
             setIsHitSplash(true);
             setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
           }
         }
 
+        const nextSpeed = Math.hypot(nextVx, nextVy);
+
+        // Update Sim Time synchronously
+        setSimTime(nextT);
+
+        // Update Trail synchronously
+        setCurrentTrail((trail) => [...trail, { x: nextX, y: nextY }]);
+
+        // Update TimeSeriesData synchronously with identical timestamp and physical variables
+        setTimeSeriesData((data) => [
+          ...data,
+          {
+            t: nextT,
+            x: nextX,
+            y: nextY,
+            v: nextSpeed,
+            vy: nextVy,
+          },
+        ]);
+
         return {
           x: nextX,
           y: nextY,
-          vx: nextVx,
-          vy: nextVy,
-          isLanded: false,
-          hasHitTarget: hitMidAir,
+          vx: isLanded ? 0 : nextVx,
+          vy: isLanded ? 0 : nextVy,
+          isLanded,
+          hasHitTarget: hit,
         };
       });
-
-      setSimTime((t) => t + dt);
-      setCurrentTrail((trail) => {
-        const last = trail[trail.length - 1];
-        if (!last || Math.hypot(flightState.x - last.x, flightState.y - last.y) > 0.4) {
-          return [...trail, { x: flightState.x, y: flightState.y }];
-        }
-        return trail;
-      });
     },
-    [g, airDragEnabled, dragCoeff, mass, simTime, flightState.x, flightState.y, targetPos.x, targetPos.y, targetRadius, showTarget, groundEnabled]
+    [g, airDragEnabled, dragCoeff, mass, simTime, targetPos.x, targetPos.y, targetRadius, showTarget, groundEnabled]
   );
 
   // Animation Loop
@@ -710,6 +719,138 @@ export default function ProjectileMotion() {
     if (currentTrail.length === 0) return '';
     return `M ${currentTrail.map((p) => `${toSvgX(p.x)},${toSvgY(p.y)}`).join(' L ')}`;
   }, [currentTrail, toSvgX, toSvgY]);
+
+  // Kinematics & Energy Graph Curves Generator
+  const graphTheoreticalPoints = useMemo(() => {
+    const pointsCount = 60;
+    const maxT = groundEnabled && theoretical.tFlight > 0 ? theoretical.tFlight : 5.0;
+    const dt = maxT / pointsCount;
+    const pts = [];
+    for (let i = 0; i <= pointsCount; i++) {
+      const t = i * dt;
+      const x = cannonPos.x + theoretical.v0x * t;
+      const y = cannonPos.y + theoretical.v0y * t - 0.5 * g * t * t;
+      const vy = theoretical.v0y - g * t;
+      const v = Math.hypot(theoretical.v0x, vy);
+      const ke = 0.5 * mass * v * v;
+      const pe = mass * g * (y - cannonPos.y); // PE w.r.t. initial position y0
+      pts.push({ t, x, y, vy, v, ke, pe });
+      if (groundEnabled && y < 0 && i > 0) break;
+    }
+    return { pts, maxT };
+  }, [cannonPos.x, cannonPos.y, theoretical.v0x, theoretical.v0y, theoretical.tFlight, g, mass, groundEnabled]);
+
+  const renderKinematicsCard = (id, title, yLabel, yUnit, color, formulaStr, description, getYVal, theoreticalField) => {
+    const width = 310;
+    const height = 125;
+    const margin = { top: 18, right: 15, bottom: 22, left: 45 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    const maxT = Math.max(2.5, graphTheoreticalPoints.maxT, simTime);
+    const theoreticalVals = graphTheoreticalPoints.pts.map((p) => p[theoreticalField]);
+    const liveVals = timeSeriesData.map((d) => getYVal(d));
+    const allVals = [...theoreticalVals, ...liveVals, 0];
+    let minY = Math.min(...allVals);
+    let maxY = Math.max(...allVals);
+    if (minY === maxY) {
+      minY -= 5;
+      maxY += 5;
+    } else {
+      const pad = (maxY - minY) * 0.15;
+      minY -= pad;
+      maxY += pad;
+    }
+
+    const scaleT = (t) => margin.left + (t / maxT) * innerWidth;
+    const scaleY = (y) => margin.top + innerHeight - ((y - minY) / (maxY - minY)) * innerHeight;
+
+    const theoPathD = graphTheoreticalPoints.pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleT(p.t).toFixed(1)} ${scaleY(p[theoreticalField]).toFixed(1)}`).join(' ');
+    const livePathD = timeSeriesData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${scaleT(d.t).toFixed(1)} ${scaleY(getYVal(d)).toFixed(1)}`).join(' ');
+
+    const lastSample = timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1] : null;
+    const currentVal = lastSample
+      ? getYVal(lastSample)
+      : getYVal({
+          t: 0,
+          x: cannonPos.x,
+          y: cannonPos.y,
+          v: initialSpeed,
+          vy: theoretical.v0y,
+        });
+
+    const activeT = lastSample ? lastSample.t : simTime;
+    const currentSvgT = scaleT(activeT);
+    const currentSvgY = scaleY(currentVal);
+    const zeroSvgY = scaleY(0);
+
+    return (
+      <div key={id} className="kinematics-graph-card" style={{ borderLeft: `4px solid ${color}` }}>
+        <div className="graph-card-header">
+          <div>
+            <span className="graph-title-text" style={{ color }}>{title}</span>
+            <span className="graph-formula-pill">{formulaStr}</span>
+          </div>
+          <div className="graph-current-badge" style={{ backgroundColor: `${color}18`, color }}>
+            {currentVal.toFixed(1)} {yUnit}
+          </div>
+        </div>
+
+        <svg viewBox={`0 0 ${width} ${height}`} className="kinematics-mini-svg">
+          {/* Background Grid Lines */}
+          <line x1={margin.left} y1={margin.top} x2={margin.left + innerWidth} y2={margin.top} stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
+          <line x1={margin.left} y1={margin.top + innerHeight / 2} x2={margin.left + innerWidth} y2={margin.top + innerHeight / 2} stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
+          <line x1={margin.left} y1={margin.top + innerHeight} x2={margin.left + innerWidth} y2={margin.top + innerHeight} stroke="#CBD5E1" strokeWidth="1.5" />
+
+          {/* Zero Axis Line */}
+          {minY < 0 && maxY > 0 && (
+            <line x1={margin.left} y1={zeroSvgY} x2={margin.left + innerWidth} y2={zeroSvgY} stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="2 2" />
+          )}
+
+          {/* Vertical Time Axis */}
+          <line x1={margin.left} y1={margin.top} x2={margin.left} y2={margin.top + innerHeight} stroke="#CBD5E1" strokeWidth="1.5" />
+
+          {/* Labels */}
+          <text x={margin.left - 6} y={margin.top + 4} textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+            {maxY.toFixed(0)}
+          </text>
+          <text x={margin.left - 6} y={margin.top + innerHeight + 3} textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+            {minY.toFixed(0)}
+          </text>
+          <text x={margin.left} y={margin.top + innerHeight + 15} textAnchor="start" fontSize="9" fill="#64748B" fontFamily="monospace">
+            0s
+          </text>
+          <text x={margin.left + innerWidth} y={margin.top + innerHeight + 15} textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+            {maxT.toFixed(1)}s
+          </text>
+
+          {/* Y Axis Title */}
+          <text x={margin.left - 8} y={margin.top + innerHeight / 2} textAnchor="middle" transform={`rotate(-90, ${margin.left - 18}, ${margin.top + innerHeight / 2})`} fontSize="9" fill="#475569" fontWeight="700">
+            {yLabel} ({yUnit})
+          </text>
+
+          {/* Theoretical Analytical Curve */}
+          {theoPathD && (
+            <path d={theoPathD} fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+          )}
+
+          {/* Live Flight Curve */}
+          {livePathD && (
+            <path d={livePathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          )}
+
+          {/* Current Live Pulse Dot */}
+          {(isRunning || simTime > 0) && (
+            <g>
+              <line x1={currentSvgT} y1={margin.top} x2={currentSvgT} y2={margin.top + innerHeight} stroke={color} strokeWidth="1" strokeDasharray="2 2" opacity="0.5" />
+              <circle cx={currentSvgT} cy={currentSvgY} r="4.5" fill={color} stroke="#FFFFFF" strokeWidth="1.5" />
+            </g>
+          )}
+        </svg>
+        <span className="graph-description-text">{description}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="sim-split-studio-layout">
@@ -1628,6 +1769,13 @@ export default function ProjectileMotion() {
           </button>
           <button
             type="button"
+            className={`analysis-tab-pill ${activeAnalysisTab === 'graphs' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('graphs')}
+          >
+            📈 Graphs
+          </button>
+          <button
+            type="button"
             className={`analysis-tab-pill ${activeAnalysisTab === 'telemetry' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('telemetry')}
           >
@@ -1658,6 +1806,128 @@ export default function ProjectileMotion() {
 
         {/* Scrollable Content Body */}
         <div className="analysis-scrollable-content" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', flex: 1 }}>
+          {/* Kinematics Graphs Section */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'graphs') && (
+            <div className="bento-subcard surface-purple" style={{ padding: '10px' }}>
+              <div className="card-top-row" style={{ marginBottom: '8px' }}>
+                <h4 className="card-title-text" style={{ fontSize: '13px' }}>📈 Real-Time Kinematics & Energy Graphs</h4>
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {['all', 'x', 'y', 'v', 'vy', 'ke', 'pe'].map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => setActiveGraphSubfilter(sub)}
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(0,0,0,0.12)',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        background: activeGraphSubfilter === sub ? '#1E293B' : '#FFFFFF',
+                        color: activeGraphSubfilter === sub ? '#FFFFFF' : '#475569',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {sub === 'all'
+                        ? 'All 6'
+                        : sub === 'x'
+                        ? 'x(t)'
+                        : sub === 'y'
+                        ? 'y(t)'
+                        : sub === 'v'
+                        ? 'v(t)'
+                        : sub === 'vy'
+                        ? 'vy(t)'
+                        : sub === 'ke'
+                        ? 'KE(t)'
+                        : 'PE(t)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'x') &&
+                  renderKinematicsCard(
+                    'graph-x-t',
+                    '1. Horizontal Position vs Time [x vs t]',
+                    'Position x',
+                    'm',
+                    '#2563EB',
+                    'x(t) = x₀ + v₀ₓ·t',
+                    'Linear displacement curve with constant horizontal slope (dx/dt = vx).',
+                    (d) => d.x,
+                    'x'
+                  )}
+
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'y') &&
+                  renderKinematicsCard(
+                    'graph-y-t',
+                    '2. Vertical Height vs Time [y vs t]',
+                    'Height y',
+                    'm',
+                    '#16A34A',
+                    'y(t) = y₀ + v₀ᵧ·t - ½gt²',
+                    'Inverted parabolic trajectory peaking at apex t = t_apex.',
+                    (d) => d.y,
+                    'y'
+                  )}
+
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'v') &&
+                  renderKinematicsCard(
+                    'graph-v-t',
+                    '3. Total Speed vs Time [v vs t]',
+                    'Speed |v|',
+                    'm/s',
+                    '#D97706',
+                    '|v(t)| = √(vₓ² + vᵧ²)',
+                    'Speed drops to minimum |vx| at apex (where vy = 0), then accelerates downwards.',
+                    (d) => d.v,
+                    'v'
+                  )}
+
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'vy') &&
+                  renderKinematicsCard(
+                    'graph-vy-t',
+                    '4. Vertical Velocity vs Time [vy vs t]',
+                    'Velocity vy',
+                    'm/s',
+                    '#7C3AED',
+                    'vᵧ(t) = v₀ᵧ - g·t',
+                    'Linear deceleration line crossing 0 at apex with constant slope -g.',
+                    (d) => d.vy,
+                    'vy'
+                  )}
+
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'ke') &&
+                  renderKinematicsCard(
+                    'graph-ke-t',
+                    '5. Kinetic Energy vs Time [KE vs t]',
+                    'Kinetic Energy',
+                    'J',
+                    '#EF4444',
+                    'KE(t) = ½·m·v(t)²',
+                    `Translational kinetic energy of m = ${mass}kg particle, reaching minimum ½m·vx² at apex.`,
+                    (d) => 0.5 * mass * d.v * d.v,
+                    'ke'
+                  )}
+
+                {(activeGraphSubfilter === 'all' || activeGraphSubfilter === 'pe') &&
+                  renderKinematicsCard(
+                    'graph-pe-t',
+                    '6. Potential Energy vs Time [PE vs t (w.r.t. y₀)]',
+                    'Potential Energy',
+                    'J',
+                    '#0284C7',
+                    'PE(t) = m·g·(y(t) - y₀)',
+                    `Gravitational potential energy calculated relative to initial launcher level y₀ = ${cannonPos.y}m (PE₀ = 0J).`,
+                    (d) => mass * g * (d.y - cannonPos.y),
+                    'pe'
+                  )}
+              </div>
+            </div>
+          )}
+
           {/* Live Flight Telemetry Tile */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'telemetry') && (
             <div className="bento-subcard surface-yellow">
