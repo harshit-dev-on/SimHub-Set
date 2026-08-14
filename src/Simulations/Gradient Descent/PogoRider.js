@@ -12,8 +12,6 @@ export default function PogoRider({
   jumpProgress = 0, // 0 to 1
   direction = 1, // 1 for right, -1 for left
   scale = 1,
-  showSpeechBubble = true,
-  speechText = '',
 }) {
   // Use passed screen normal angle if available, otherwise compute from slope
   let finalAngle = typeof angleDeg === 'number' && !isNaN(angleDeg) ? angleDeg : 0;
@@ -48,36 +46,6 @@ export default function PogoRider({
       transform={`rotate(${clampedAngle}) scale(${scale})`}
       style={{ transformOrigin: '0px 0px' }}
     >
-      {/* Speech / Thought Bubble */}
-      {showSpeechBubble && speechText && (
-        <g transform="translate(0, -68)" className="pogo-speech-bubble">
-          <rect
-            x="-45"
-            y="-22"
-            width="90"
-            height="24"
-            rx="12"
-            fill="#FFFFFF"
-            stroke="#1B1C20"
-            strokeWidth="1.5"
-            filter="drop-shadow(0 2px 5px rgba(0,0,0,0.15))"
-          />
-          <polygon points="0,-2 -4,-8 4,-8" fill="#FFFFFF" />
-          <polygon points="0,-1 -5,-9 5,-9" fill="none" stroke="#1B1C20" strokeWidth="1.2" />
-          <text
-            x="0"
-            y="-7"
-            textAnchor="middle"
-            fontFamily="'Gaegu', 'Caveat', cursive"
-            fontSize="13"
-            fontWeight="700"
-            fill="#1B1C20"
-          >
-            {speechText}
-          </text>
-        </g>
-      )}
-
       {/* Dust Puffs when jumping or landing */}
       {(isBouncing || (isAirborne && (jumpProgress < 0.15 || jumpProgress > 0.85))) && (
         <g className="pogo-dust-puffs" transform="translate(0, 0)">

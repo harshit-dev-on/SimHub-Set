@@ -45,6 +45,7 @@ export default function GradientDescent() {
   const [isRunning, setIsRunning] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(250); // ms per step
   const [history, setHistory] = useState([]);
+  const [stepCount, setStepCount] = useState(0);
   const [statusMessage, setStatusMessage] = useState('Ready to descend');
 
   const currentFunc = allFunctions[selectedFuncKey] || allFunctions.quadratic;
@@ -219,6 +220,7 @@ export default function GradientDescent() {
       grad: startGrad,
       stepSize: 0,
     }]);
+    setStepCount(0);
     setStatusMessage('Ready to descend');
   }, [currentFunc, safeFn, safeDeriv, computeScreenNormalAngle]);
 
@@ -355,6 +357,7 @@ export default function GradientDescent() {
           ];
           return newHist.slice(-40);
         });
+        setStepCount((prev) => prev + 1);
 
         if (Math.abs(nextGrad) < 0.0005) {
           setIsRunning(false);
@@ -460,6 +463,7 @@ export default function GradientDescent() {
       grad: gradVal,
       stepSize: 0,
     }]);
+    setStepCount(0);
     setStatusMessage(`Placed at w = ${roundedX.toFixed(2)} (Slope: ${gradVal.toFixed(2)})`);
   }, [safeFn, safeDeriv, computeScreenNormalAngle]);
 
@@ -717,32 +721,6 @@ export default function GradientDescent() {
                       stroke="#FFFFFF"
                       strokeWidth="0.8"
                     />
-
-                    {/* Mini Badge / Label over the flag */}
-                    <g transform="translate(0, -42)" className="flag-label-group">
-                      <rect
-                        x={isGlobal ? -32 : -28}
-                        y="-12"
-                        width={isGlobal ? 64 : 56}
-                        height="16"
-                        rx="8"
-                        fill={isGlobal ? '#14532D' : '#7F1D1D'}
-                        stroke="#FFFFFF"
-                        strokeWidth="1"
-                        filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
-                      />
-                      <text
-                        x="0"
-                        y="0"
-                        textAnchor="middle"
-                        fontFamily="var(--font-primary)"
-                        fontSize="9"
-                        fontWeight="700"
-                        fill="#FFFFFF"
-                      >
-                        {isGlobal ? 'Global 🌟' : 'Local ⚠️'}
-                      </text>
-                    </g>
                   </g>
                 );
               })}
@@ -848,20 +826,6 @@ export default function GradientDescent() {
                     jumpProgress={renderPos.progress}
                     direction={renderPos.direction}
                     scale={isDragging ? 1.05 : 0.9}
-                    showSpeechBubble={true}
-                    speechText={
-                      isDragging
-                        ? 'Wheee! 🎯'
-                        : renderPos.isJumping
-                        ? displayHop > 18
-                          ? 'Wheeee! 🚀'
-                          : 'Hop! 💨'
-                        : Math.abs(currentGrad) < 0.005
-                        ? 'Valley reached! 🏁'
-                        : Math.abs(currentGrad) > 3
-                        ? 'Steep hill! ⚠️'
-                        : 'Ready to bounce!'
-                    }
                   />
                 </g>
               ) : (
@@ -931,7 +895,7 @@ export default function GradientDescent() {
             </div>
             <div className="metric-chip">
               <span className="metric-tag">Step #</span>
-              <strong className="metric-val">{history.length - 1}</strong>
+              <strong className="metric-val">{stepCount}</strong>
             </div>
           </div>
         </div>
