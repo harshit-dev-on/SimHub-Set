@@ -247,17 +247,39 @@
   stroke-width: 2;
 }
 
+.cannon-barrel-group,
+.vector-aim-group {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.cannon-barrel-group.is-aiming,
+.vector-aim-group.is-aiming {
+  cursor: grabbing;
+}
+
 .cannon-barrel {
   fill: url(#cannonMetalGradient);
   stroke: #0F172A;
   stroke-width: 2;
   filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.25));
   transform-origin: 0px 0px;
-  cursor: grab;
 }
 
-.cannon-barrel:active {
-  cursor: grabbing;
+.cannon-nozzle-handle,
+.vector-tip-handle {
+  transition: r 0.15s ease, fill 0.15s ease;
+}
+
+.cannon-barrel-group:hover .cannon-nozzle-handle {
+  fill: rgba(245, 158, 11, 0.35);
+  r: 14;
+}
+
+.vector-aim-group:hover .vector-tip-handle {
+  fill: rgba(37, 99, 235, 0.35);
+  r: 14;
 }
 
 .angle-arc-guide {

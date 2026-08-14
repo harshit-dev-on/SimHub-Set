@@ -58,6 +58,7 @@ export default function ProjectileMotion() {
   const [targetScore, setTargetScore] = useState({ hits: 0, attempts: 0 });
   const [isHitSplash, setIsHitSplash] = useState(false);
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
+  const [isDraggingAim, setIsDraggingAim] = useState(false);
 
   // Overlays & Analysis View
   const [visualMode, setVisualMode] = useState('physics'); // 'physics' | 'math'
@@ -406,7 +407,18 @@ export default function ProjectileMotion() {
     [viewBounds]
   );
 
-  // Target Drag Handlers
+  // SVG Base Coordinates
+  const cannonBaseX = toSvgX(0);
+  const cannonBaseY = toSvgY(initialHeight);
+  const groundY = toSvgY(0);
+
+  // Pointer Aim & Target Drag Handlers
+  const handlePointerDownAim = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingAim(true);
+  };
+
   const handlePointerDownTarget = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -415,29 +427,42 @@ export default function ProjectileMotion() {
 
   const handlePointerMove = useCallback(
     (e) => {
-      if (!isDraggingTarget || !svgRef.current) return;
+      if ((!isDraggingAim && !isDraggingTarget) || !svgRef.current) return;
       const rect = svgRef.current.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
       const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
-      const rawX = fromSvgX(svgX);
-      const rawY = fromSvgY(svgY);
-      const clampedX = Math.max(viewBounds.minX + 4, Math.min(viewBounds.maxX - 4, rawX));
-      const clampedY = Math.max(0, Math.min(viewBounds.maxY - 4, rawY));
-      setTargetPos({
-        x: Math.round(clampedX * 10) / 10,
-        y: Math.round(clampedY * 10) / 10,
-      });
+
+      if (isDraggingAim) {
+        const dx = svgX - cannonBaseX;
+        const dy = svgY - cannonBaseY;
+        let deg = Math.atan2(-dy, dx) * (180 / Math.PI);
+        if (deg < 0) {
+          deg = dx >= 0 ? 0 : 180;
+        }
+        deg = Math.max(0, Math.min(180, Math.round(deg)));
+        setAngleDeg(deg);
+      } else if (isDraggingTarget) {
+        const rawX = fromSvgX(svgX);
+        const rawY = fromSvgY(svgY);
+        const clampedX = Math.max(viewBounds.minX + 4, Math.min(viewBounds.maxX - 4, rawX));
+        const clampedY = Math.max(0, Math.min(viewBounds.maxY - 4, rawY));
+        setTargetPos({
+          x: Math.round(clampedX * 10) / 10,
+          y: Math.round(clampedY * 10) / 10,
+        });
+      }
     },
-    [isDraggingTarget, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.maxY]
+    [isDraggingAim, isDraggingTarget, cannonBaseX, cannonBaseY, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.maxY]
   );
 
   const handlePointerUp = useCallback(() => {
     setIsDraggingTarget(false);
+    setIsDraggingAim(false);
   }, []);
 
   useEffect(() => {
-    if (isDraggingTarget) {
+    if (isDraggingTarget || isDraggingAim) {
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       window.addEventListener('pointercancel', handlePointerUp);
@@ -447,12 +472,7 @@ export default function ProjectileMotion() {
         window.removeEventListener('pointercancel', handlePointerUp);
       };
     }
-  }, [isDraggingTarget, handlePointerMove, handlePointerUp]);
-
-  // SVG Coordinates
-  const cannonBaseX = toSvgX(0);
-  const cannonBaseY = toSvgY(initialHeight);
-  const groundY = toSvgY(0);
+  }, [isDraggingTarget, isDraggingAim, handlePointerMove, handlePointerUp]);
 
   const projSvgX = toSvgX(flightState.x);
   const projSvgY = toSvgY(flightState.y);
@@ -955,10 +975,27 @@ export default function ProjectileMotion() {
                       {angleDeg}°
                     </text>
 
-                    {/* Rotating Barrel */}
-                    <g transform={`rotate(${-angleDeg})`}>
+                    {/* Rotating Barrel with Draggable Nozzle */}
+                    <g
+                      transform={`rotate(${-angleDeg})`}
+                      className={`cannon-barrel-group ${isDraggingAim ? 'is-aiming' : ''}`}
+                      onPointerDown={handlePointerDownAim}
+                      title="Click and drag nozzle to rotate launch angle"
+                    >
                       <rect x="0" y="-8" width="36" height="16" rx="4" className="cannon-barrel" />
                       <circle cx="36" cy="0" r="8" fill="#1E293B" />
+                      {/* Interactive Drag Handle on Nozzle */}
+                      <circle
+                        cx="36"
+                        cy="0"
+                        r="11"
+                        fill={isDraggingAim ? 'rgba(245, 158, 11, 0.45)' : 'rgba(245, 158, 11, 0.18)'}
+                        stroke="#F59E0B"
+                        strokeWidth="1.5"
+                        strokeDasharray={isDraggingAim ? 'none' : '3 3'}
+                        className="cannon-nozzle-handle"
+                      />
+                      <circle cx="36" cy="0" r="3.5" fill="#F59E0B" />
                     </g>
 
                     {/* Cannon Carriage / Wheels */}
@@ -967,7 +1004,7 @@ export default function ProjectileMotion() {
                     <circle cx="0" cy="6" r="3" fill="#94A3B8" />
                   </g>
                 ) : (
-                  /* Math Mode: Vector Launcher Arrow v0 */
+                  /* Math Mode: Vector Launcher Arrow v0 with Draggable Tip */
                   <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
                     {/* Angle Sector Arc */}
                     <path
@@ -990,19 +1027,42 @@ export default function ProjectileMotion() {
                     </text>
 
                     {/* Initial Velocity Vector Arrow v0 */}
-                    <line
-                      x1="0"
-                      y1="0"
-                      x2={50 * Math.cos(angleRad)}
-                      y2={-50 * Math.sin(angleRad)}
-                      stroke="#2563EB"
-                      strokeWidth="2.5"
-                      markerEnd="url(#v0VectorArrowhead)"
-                    />
-                    <circle cx="0" cy="0" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
+                    <g
+                      className={`vector-aim-group ${isDraggingAim ? 'is-aiming' : ''}`}
+                      onPointerDown={handlePointerDownAim}
+                      title="Click and drag arrow to rotate vector angle"
+                    >
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2={50 * Math.cos(angleRad)}
+                        y2={-50 * Math.sin(angleRad)}
+                        stroke="#2563EB"
+                        strokeWidth="2.8"
+                        markerEnd="url(#v0VectorArrowhead)"
+                      />
+                      <circle cx="0" cy="0" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
+                      {/* Draggable Vector Tip Handle */}
+                      <circle
+                        cx={50 * Math.cos(angleRad)}
+                        cy={-50 * Math.sin(angleRad)}
+                        r="11"
+                        fill={isDraggingAim ? 'rgba(37, 99, 235, 0.45)' : 'rgba(37, 99, 235, 0.18)'}
+                        stroke="#2563EB"
+                        strokeWidth="1.5"
+                        strokeDasharray={isDraggingAim ? 'none' : '3 3'}
+                        className="vector-tip-handle"
+                      />
+                      <circle
+                        cx={50 * Math.cos(angleRad)}
+                        cy={-50 * Math.sin(angleRad)}
+                        r="3.5"
+                        fill="#2563EB"
+                      />
+                    </g>
                     <text
-                      x={56 * Math.cos(angleRad)}
-                      y={-56 * Math.sin(angleRad)}
+                      x={58 * Math.cos(angleRad)}
+                      y={-58 * Math.sin(angleRad)}
                       fill="#2563EB"
                       fontSize="10"
                       fontWeight="800"
