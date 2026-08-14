@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import HomePage from './Home/HomePage';
 import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
 import MontyHall from './Simulations/Monty Hall/MontyHall';
 import ProjectileMotion from './Simulations/Projectile Motion/ProjectileMotion';
 import ElectronClouding from './Simulations/Electron Clouding/ElectronClouding';
 
 function App() {
-  const [activeSimulation, setActiveSimulation] = useState('electron-clouding');
+  const [activeSimulation, setActiveSimulation] = useState('home');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync state with native fullscreen changes (e.g. Esc or F11 key)
@@ -60,6 +61,7 @@ function App() {
   };
 
   const simulationsList = [
+    { id: 'home', title: 'Home', icon: '🏠', tag: 'Discovery Hub' },
     { id: 'gradient-descent', title: 'Gradient Descent', icon: '📉', tag: 'Optimization' },
     { id: 'monty-hall', title: 'Monty Hall Problem', icon: '🚪', tag: 'Probability' },
     { id: 'projectile-motion', title: 'Projectile Motion', icon: '🎯', tag: 'Physics' },
@@ -70,7 +72,12 @@ function App() {
     <div className={`simhub-root ${isFullscreen ? 'is-fullscreen-active' : ''}`}>
       {/* Studio Header Bar */}
       <header className="simhub-top-nav">
-        <div className="simhub-brand">
+        <div
+          className="simhub-brand"
+          onClick={() => setActiveSimulation('home')}
+          style={{ cursor: 'pointer' }}
+          title="Return to SimHub Home"
+        >
           <div className="brand-badge-pill">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M 3 8 Q 12 20 21 8" stroke="#66BB6A" strokeWidth="2.8" strokeLinecap="round" />
@@ -128,7 +135,10 @@ function App() {
       </header>
 
       {/* Main Simulation Stage */}
-      <main className="simhub-main-stage">
+      <main className={`simhub-main-stage ${activeSimulation === 'home' ? 'is-home-stage' : ''}`}>
+        {activeSimulation === 'home' && (
+          <HomePage onSelectSimulation={(simId) => setActiveSimulation(simId)} />
+        )}
         {activeSimulation === 'gradient-descent' && <GradientDescent />}
         {activeSimulation === 'monty-hall' && <MontyHall />}
         {activeSimulation === 'projectile-motion' && <ProjectileMotion />}

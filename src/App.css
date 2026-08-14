@@ -200,6 +200,13 @@
   justify-content: center;
 }
 
+.simhub-main-stage.is-home-stage {
+  padding: 0;
+  display: block;
+  overflow-y: auto;
+  min-height: calc(100vh - 54px);
+}
+
 .sim-split-studio-layout {
   display: flex;
   gap: 14px;
