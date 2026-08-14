@@ -62,6 +62,12 @@ export default function ProjectileMotion() {
   const [isDraggingAim, setIsDraggingAim] = useState(false);
   const [isDraggingCannon, setIsDraggingCannon] = useState(false);
 
+  // 2D Pan & Zoom Navigation State
+  const [zoomLevel, setZoomLevel] = useState(1.0); // 1.0 = 100%, 0.25x to 6.0x
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 }); // meters pan offset
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ clientX: 0, clientY: 0, initPanX: 0, initPanY: 0 });
+
   // Overlays & Analysis View
   const [visualMode, setVisualMode] = useState('physics'); // 'physics' | 'math'
   const [showAxes, setShowAxes] = useState(true);
@@ -71,6 +77,7 @@ export default function ProjectileMotion() {
   const [activeAnalysisTab, setActiveAnalysisTab] = useState('all');
 
   // Refs
+  const viewportRef = useRef(null);
   const svgRef = useRef(null);
   const animFrameRef = useRef(null);
   const lastTimestampRef = useRef(null);
@@ -360,22 +367,31 @@ export default function ProjectileMotion() {
     return niceFraction * power;
   };
 
-  // Viewport / Coordinate Mapping (1:1 Isometric Aspect Ratio for Perfect Angle Match)
+  // Viewport / Coordinate Mapping (Stable 1:1 Isometric Canvas Frame)
   const viewBounds = useMemo(() => {
     const targetAspect = 800 / 460;
 
-    // Key points that must be comfortably visible
+    // Key points that define the stable arena bounds
     const relevantX = [cannonPos.x];
     if (showTarget) relevantX.push(targetPos.x);
-    if (groundEnabled && theoretical.range) relevantX.push(theoretical.range);
-    if (isRunning || simTime > 0) relevantX.push(flightState.x);
+    if (groundEnabled && theoretical.range) {
+      relevantX.push(theoretical.range);
+    } else {
+      // In groundless mode, bound by expected flight span
+      relevantX.push(cannonPos.x + theoretical.v0x * 5);
+    }
+
+    // Include ghost trails if present
+    ghostTrails.forEach((gt) => {
+      gt.trail.forEach((pt) => relevantX.push(pt.x));
+    });
 
     const minObservedX = Math.min(...relevantX);
     const maxObservedX = Math.max(...relevantX);
 
     // Initial padding margins
-    let minX = minObservedX - 12;
-    let maxX = maxObservedX + 12;
+    let minX = minObservedX - 14;
+    let maxX = maxObservedX + 14;
 
     if (maxX - minX < 36) {
       const mid = (minX + maxX) / 2;
@@ -386,8 +402,16 @@ export default function ProjectileMotion() {
     const relevantY = [cannonPos.y];
     if (showTarget) relevantY.push(targetPos.y);
     if (theoretical.hMax) relevantY.push(theoretical.hMax);
-    if (isRunning || simTime > 0) relevantY.push(flightState.y);
-    if (groundEnabled) relevantY.push(0);
+    if (groundEnabled) {
+      relevantY.push(0);
+    } else {
+      const projectedMinY = cannonPos.y + theoretical.v0y * 5 - 0.5 * g * 25;
+      relevantY.push(Math.max(-80, projectedMinY));
+    }
+
+    ghostTrails.forEach((gt) => {
+      gt.trail.forEach((pt) => relevantY.push(pt.y));
+    });
 
     const minObservedY = Math.min(...relevantY);
     const maxObservedY = Math.max(...relevantY);
@@ -419,57 +443,78 @@ export default function ProjectileMotion() {
     }
 
     return { minX, maxX, minY, maxY };
-  }, [showTarget, targetPos.x, targetPos.y, cannonPos.x, cannonPos.y, theoretical.range, theoretical.hMax, groundEnabled, isRunning, simTime, flightState.x, flightState.y]);
+  }, [showTarget, targetPos.x, targetPos.y, cannonPos.x, cannonPos.y, theoretical.range, theoretical.v0x, theoretical.v0y, theoretical.hMax, groundEnabled, ghostTrails, g]);
+
+  // Active Viewport with Zoom and Pan Transformations
+  const activeViewBounds = useMemo(() => {
+    const baseMidX = (viewBounds.minX + viewBounds.maxX) / 2;
+    const baseMidY = (viewBounds.minY + viewBounds.maxY) / 2;
+    const baseSpanX = viewBounds.maxX - viewBounds.minX;
+    const baseSpanY = viewBounds.maxY - viewBounds.minY;
+
+    const currentSpanX = baseSpanX / zoomLevel;
+    const currentSpanY = baseSpanY / zoomLevel;
+
+    const currentMidX = baseMidX + panOffset.x;
+    const currentMidY = baseMidY + panOffset.y;
+
+    return {
+      minX: currentMidX - currentSpanX / 2,
+      maxX: currentMidX + currentSpanX / 2,
+      minY: currentMidY - currentSpanY / 2,
+      maxY: currentMidY + currentSpanY / 2,
+    };
+  }, [viewBounds, zoomLevel, panOffset]);
 
   // Dynamic Grid Marks for X with Adaptive Step
   const xGridMarks = useMemo(() => {
     const marks = [];
-    const span = viewBounds.maxX - viewBounds.minX;
+    const span = activeViewBounds.maxX - activeViewBounds.minX;
     const step = calculateNiceStep(span, 8);
-    const start = Math.floor(viewBounds.minX / step) * step;
-    const end = Math.ceil(viewBounds.maxX / step) * step;
+    const start = Math.floor(activeViewBounds.minX / step) * step;
+    const end = Math.ceil(activeViewBounds.maxX / step) * step;
     for (let gx = start; gx <= end; gx += step) {
-      if (gx !== 0 && gx >= viewBounds.minX + step * 0.15 && gx <= viewBounds.maxX - step * 0.15) {
+      if (gx !== 0 && gx >= activeViewBounds.minX + step * 0.15 && gx <= activeViewBounds.maxX - step * 0.15) {
         marks.push(gx);
       }
     }
     return marks;
-  }, [viewBounds.minX, viewBounds.maxX]);
+  }, [activeViewBounds.minX, activeViewBounds.maxX]);
 
   // Dynamic Grid Marks for Y with Adaptive Step
   const yGridMarks = useMemo(() => {
     const marks = [];
-    const span = viewBounds.maxY - viewBounds.minY;
+    const span = activeViewBounds.maxY - activeViewBounds.minY;
     const step = calculateNiceStep(span, 6);
-    const start = Math.floor(viewBounds.minY / step) * step;
-    const end = Math.ceil(viewBounds.maxY / step) * step;
+    const start = Math.floor(activeViewBounds.minY / step) * step;
+    const end = Math.ceil(activeViewBounds.maxY / step) * step;
     for (let gy = start; gy <= end; gy += step) {
-      if (gy !== 0 && gy >= viewBounds.minY + step * 0.15 && gy <= viewBounds.maxY - step * 0.15) {
+      if (gy !== 0 && gy >= activeViewBounds.minY + step * 0.15 && gy <= activeViewBounds.maxY - step * 0.15) {
         marks.push(gy);
       }
     }
     return marks;
-  }, [viewBounds.minY, viewBounds.maxY]);
+  }, [activeViewBounds.minY, activeViewBounds.maxY]);
 
   const svgWidth = 800;
   const svgHeight = 460;
 
   const toSvgX = useCallback(
-    (x) => ((x - viewBounds.minX) / (viewBounds.maxX - viewBounds.minX)) * svgWidth,
-    [viewBounds]
+    (x) => ((x - activeViewBounds.minX) / (activeViewBounds.maxX - activeViewBounds.minX)) * svgWidth,
+    [activeViewBounds]
   );
   const toSvgY = useCallback(
-    (y) => svgHeight - ((y - viewBounds.minY) / (viewBounds.maxY - viewBounds.minY)) * svgHeight,
-    [viewBounds]
+    (y) => svgHeight - ((y - activeViewBounds.minY) / (activeViewBounds.maxY - activeViewBounds.minY)) * svgHeight,
+    [activeViewBounds]
   );
 
   const fromSvgX = useCallback(
-    (svgX) => viewBounds.minX + (svgX / svgWidth) * (viewBounds.maxX - viewBounds.minX),
-    [viewBounds]
+    (svgX) => activeViewBounds.minX + (svgX / svgWidth) * (activeViewBounds.maxX - activeViewBounds.minX),
+    [activeViewBounds]
   );
   const fromSvgY = useCallback(
-    (svgY) => viewBounds.minY + ((svgHeight - svgY) / svgHeight) * (viewBounds.maxY - viewBounds.minY),
-    [viewBounds]
+    (svgY) => activeViewBounds.minY + ((svgHeight - svgY) / svgHeight) * (activeViewBounds.maxY - activeViewBounds.minY),
+    [activeViewBounds]
   );
 
   // SVG Base Coordinates
@@ -477,7 +522,69 @@ export default function ProjectileMotion() {
   const cannonBaseY = toSvgY(cannonPos.y);
   const groundY = toSvgY(0);
 
-  // Pointer Drag Handlers (Aiming, Cannon Moving, Target Moving)
+  // Wheel Zoom Listener (Attached to Viewport Container with Cursor Anchor)
+  useEffect(() => {
+    const el = viewportRef.current || svgRef.current;
+    if (!el) return;
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = el.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+      const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+
+      const cursorWorldX = fromSvgX(svgX);
+      const cursorWorldY = fromSvgY(svgY);
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      setZoomLevel((prevZoom) => {
+        const nextZoom = Math.max(0.25, Math.min(6.0, Math.round(prevZoom * zoomFactor * 100) / 100));
+        if (nextZoom === prevZoom) return prevZoom;
+
+        // Keep cursor position stable under mouse
+        const baseSpanX = viewBounds.maxX - viewBounds.minX;
+        const baseSpanY = viewBounds.maxY - viewBounds.minY;
+        const nextSpanX = baseSpanX / nextZoom;
+        const nextSpanY = baseSpanY / nextZoom;
+
+        const nextMinX = cursorWorldX - (svgX / svgWidth) * nextSpanX;
+        const nextMinY = cursorWorldY - ((svgHeight - svgY) / svgHeight) * nextSpanY;
+
+        const nextMidX = nextMinX + nextSpanX / 2;
+        const nextMidY = nextMinY + nextSpanY / 2;
+
+        const baseMidX = (viewBounds.minX + viewBounds.maxX) / 2;
+        const baseMidY = (viewBounds.minY + viewBounds.maxY) / 2;
+
+        setPanOffset({
+          x: Math.round((nextMidX - baseMidX) * 10) / 10,
+          y: Math.round((nextMidY - baseMidY) * 10) / 10,
+        });
+
+        return nextZoom;
+      });
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [fromSvgX, fromSvgY, viewBounds, svgWidth, svgHeight]);
+
+  // Pointer Drag Handlers (Aiming, Cannon Moving, Target Moving, Canvas Panning)
+  const handlePointerDownCanvas = (e) => {
+    // Canvas background panning
+    panStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      initPanX: panOffset.x,
+      initPanY: panOffset.y,
+    };
+    setIsPanning(true);
+  };
+
   const handlePointerDownAim = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -498,13 +605,23 @@ export default function ProjectileMotion() {
 
   const handlePointerMove = useCallback(
     (e) => {
-      if ((!isDraggingAim && !isDraggingTarget && !isDraggingCannon) || !svgRef.current) return;
+      if ((!isDraggingAim && !isDraggingTarget && !isDraggingCannon && !isPanning) || !svgRef.current) return;
       const rect = svgRef.current.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
       const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
 
-      if (isDraggingAim) {
+      if (isPanning) {
+        const dxPx = e.clientX - panStartRef.current.clientX;
+        const dyPx = e.clientY - panStartRef.current.clientY;
+        const metersPerPx = (activeViewBounds.maxX - activeViewBounds.minX) / svgWidth;
+        const deltaMetersX = -dxPx * metersPerPx;
+        const deltaMetersY = dyPx * metersPerPx;
+        setPanOffset({
+          x: Math.round((panStartRef.current.initPanX + deltaMetersX) * 10) / 10,
+          y: Math.round((panStartRef.current.initPanY + deltaMetersY) * 10) / 10,
+        });
+      } else if (isDraggingAim) {
         const dx = svgX - toSvgX(cannonPos.x);
         const dy = svgY - toSvgY(cannonPos.y);
         let deg = Math.atan2(-dy, dx) * (180 / Math.PI);
@@ -516,10 +633,10 @@ export default function ProjectileMotion() {
       } else if (isDraggingCannon) {
         const rawX = fromSvgX(svgX);
         const rawY = fromSvgY(svgY);
-        const clampedX = Math.max(viewBounds.minX + 3, Math.min(viewBounds.maxX - 3, rawX));
+        const clampedX = Math.max(activeViewBounds.minX + 3, Math.min(activeViewBounds.maxX - 3, rawX));
         const clampedY = groundEnabled
-          ? Math.max(0, Math.min(viewBounds.maxY - 3, rawY))
-          : Math.max(viewBounds.minY + 3, Math.min(viewBounds.maxY - 3, rawY));
+          ? Math.max(0, Math.min(activeViewBounds.maxY - 3, rawY))
+          : Math.max(activeViewBounds.minY + 3, Math.min(activeViewBounds.maxY - 3, rawY));
         setCannonPos({
           x: Math.round(clampedX * 10) / 10,
           y: Math.round(clampedY * 10) / 10,
@@ -527,27 +644,28 @@ export default function ProjectileMotion() {
       } else if (isDraggingTarget) {
         const rawX = fromSvgX(svgX);
         const rawY = fromSvgY(svgY);
-        const clampedX = Math.max(viewBounds.minX + 3, Math.min(viewBounds.maxX - 3, rawX));
+        const clampedX = Math.max(activeViewBounds.minX + 3, Math.min(activeViewBounds.maxX - 3, rawX));
         const clampedY = groundEnabled
-          ? Math.max(0, Math.min(viewBounds.maxY - 3, rawY))
-          : Math.max(viewBounds.minY + 3, Math.min(viewBounds.maxY - 3, rawY));
+          ? Math.max(0, Math.min(activeViewBounds.maxY - 3, rawY))
+          : Math.max(activeViewBounds.minY + 3, Math.min(activeViewBounds.maxY - 3, rawY));
         setTargetPos({
           x: Math.round(clampedX * 10) / 10,
           y: Math.round(clampedY * 10) / 10,
         });
       }
     },
-    [isDraggingAim, isDraggingCannon, isDraggingTarget, cannonPos.x, cannonPos.y, toSvgX, toSvgY, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.minY, viewBounds.maxY, groundEnabled]
+    [isDraggingAim, isDraggingCannon, isDraggingTarget, isPanning, cannonPos.x, cannonPos.y, toSvgX, toSvgY, fromSvgX, fromSvgY, activeViewBounds.minX, activeViewBounds.maxX, activeViewBounds.minY, activeViewBounds.maxY, groundEnabled]
   );
 
   const handlePointerUp = useCallback(() => {
     setIsDraggingTarget(false);
     setIsDraggingAim(false);
     setIsDraggingCannon(false);
+    setIsPanning(false);
   }, []);
 
   useEffect(() => {
-    if (isDraggingTarget || isDraggingAim || isDraggingCannon) {
+    if (isDraggingTarget || isDraggingAim || isDraggingCannon || isPanning) {
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       window.addEventListener('pointercancel', handlePointerUp);
@@ -557,7 +675,7 @@ export default function ProjectileMotion() {
         window.removeEventListener('pointercancel', handlePointerUp);
       };
     }
-  }, [isDraggingTarget, isDraggingAim, isDraggingCannon, handlePointerMove, handlePointerUp]);
+  }, [isDraggingTarget, isDraggingAim, isDraggingCannon, isPanning, handlePointerMove, handlePointerUp]);
 
   const projSvgX = toSvgX(flightState.x);
   const projSvgY = toSvgY(flightState.y);
@@ -688,7 +806,10 @@ export default function ProjectileMotion() {
             </div>
 
             {/* Ballistics / Mathematical SVG Viewport */}
-            <div className={`projectile-svg-viewport ${visualMode === 'math' ? 'math-mode' : ''}`}>
+            <div
+              ref={viewportRef}
+              className={`projectile-svg-viewport ${visualMode === 'math' ? 'math-mode' : ''}`}
+            >
               {/* Floating Explicit Parabola Formula Badge in Math Mode */}
               {visualMode === 'math' && (
                 <div className="floating-math-formula-pill">
@@ -697,11 +818,49 @@ export default function ProjectileMotion() {
                 </div>
               )}
 
+              {/* Floating Pan & Zoom HUD */}
+              <div className="floating-viewport-hud">
+                <button
+                  type="button"
+                  className="hud-btn"
+                  onClick={() => setZoomLevel((z) => Math.min(6.0, Math.round(z * 1.25 * 100) / 100))}
+                  title="Zoom In (or scroll wheel up)"
+                >
+                  ➕
+                </button>
+                <span className="hud-zoom-indicator">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  type="button"
+                  className="hud-btn"
+                  onClick={() => setZoomLevel((z) => Math.max(0.25, Math.round(z * 0.8 * 100) / 100))}
+                  title="Zoom Out (or scroll wheel down)"
+                >
+                  ➖
+                </button>
+                {(zoomLevel !== 1.0 || panOffset.x !== 0 || panOffset.y !== 0) && (
+                  <button
+                    type="button"
+                    className="hud-btn hud-btn-reset"
+                    onClick={() => {
+                      setZoomLevel(1.0);
+                      setPanOffset({ x: 0, y: 0 });
+                    }}
+                    title="Reset pan & zoom to default arena frame"
+                  >
+                    🎯 Fit View
+                  </button>
+                )}
+              </div>
+
               <svg
                 ref={svgRef}
                 className="projectile-svg"
                 viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                 preserveAspectRatio="xMidYMid meet"
+                onPointerDown={handlePointerDownCanvas}
+                style={{ cursor: isPanning ? 'grabbing' : 'crosshair' }}
               >
                 <defs>
                   <linearGradient id="cannonMetalGradient" x1="0" y1="0" x2="1" y2="1">
@@ -1052,9 +1211,9 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Launcher: Physics Cannon vs Math Vector Origin (Draggable Launcher Base) */}
+                {/* Launcher: Physics Cannon vs Math Vector Origin (Scaled with Zoom) */}
                 {visualMode === 'physics' ? (
-                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY}) scale(${zoomLevel})`}>
                     {/* Drag Halo for Cannon Base when moving */}
                     {isDraggingCannon && (
                       <circle cx="0" cy="0" r="28" fill="none" stroke="#2563EB" strokeWidth="2" strokeDasharray="4 4" />
@@ -1118,8 +1277,8 @@ export default function ProjectileMotion() {
                     </g>
                   </g>
                 ) : (
-                  /* Math Mode: Vector Launcher Arrow v0 with Draggable Origin and Tip */
-                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                  /* Math Mode: Vector Launcher Arrow v0 with Draggable Origin and Tip (Scaled with Zoom) */
+                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY}) scale(${zoomLevel})`}>
                     {/* Drag Halo for Origin Point P0 */}
                     {isDraggingCannon && (
                       <circle cx="0" cy="0" r="22" fill="none" stroke="#2563EB" strokeWidth="2" strokeDasharray="3 3" />
@@ -1203,9 +1362,9 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Flying Projectile: Ballistics vs Math Point Particle */}
+                {/* Flying Projectile: Ballistics vs Math Point Particle (Scaled with Zoom) */}
                 {(isRunning || simTime > 0) && (
-                  <g transform={`translate(${projSvgX}, ${projSvgY})`}>
+                  <g transform={`translate(${projSvgX}, ${projSvgY}) scale(${zoomLevel})`}>
                     {visualMode === 'physics' ? (
                       <>
                         <circle cx="0" cy="0" r="7" className="projectile-ball" />
