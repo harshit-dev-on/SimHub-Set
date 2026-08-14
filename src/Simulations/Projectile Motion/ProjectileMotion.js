@@ -49,10 +49,12 @@ export default function ProjectileMotion() {
   const [landingData, setLandingData] = useState(null);
 
   // Target Challenge Mode
-  const [targetPos, setTargetPos] = useState({ x: 55, y: 0 }); // meters
+  const [showTarget, setShowTarget] = useState(true);
+  const [targetPos, setTargetPos] = useState({ x: 55, y: 0 }); // meters (x: distance, y: altitude)
   const [targetRadius] = useState(2.5); // meters
   const [targetScore, setTargetScore] = useState({ hits: 0, attempts: 0 });
   const [isHitSplash, setIsHitSplash] = useState(false);
+  const [isDraggingTarget, setIsDraggingTarget] = useState(false);
 
   // Overlays & Analysis View
   const [showVectors, setShowVectors] = useState(true);
@@ -60,7 +62,8 @@ export default function ProjectileMotion() {
   const [showApexMarker, setShowApexMarker] = useState(true);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState('all');
 
-  // Animation Frame Ref
+  // Refs
+  const svgRef = useRef(null);
   const animFrameRef = useRef(null);
   const lastTimestampRef = useRef(null);
 
@@ -139,10 +142,14 @@ export default function ProjectileMotion() {
         ]);
       }
       resetSimulation();
-      setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
+      if (showTarget) {
+        setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
+      }
       setIsRunning(true);
     } else {
-      setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
+      if (showTarget) {
+        setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
+      }
       setIsRunning(true);
     }
   };
@@ -181,12 +188,17 @@ export default function ProjectileMotion() {
           const landingX = nextX;
           setLandingData({ x: landingX, time: simTime + dt });
 
-          // Check Target Hit
-          const distToTarget = Math.abs(landingX - targetPos.x);
-          const hit = distToTarget <= targetRadius;
-          if (hit) {
-            setIsHitSplash(true);
-            setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
+          // Check Target Hit (if target is enabled)
+          let hit = false;
+          if (showTarget) {
+            const distToTarget = Math.sqrt(
+              Math.pow(landingX - targetPos.x, 2) + Math.pow(0 - targetPos.y, 2)
+            );
+            hit = distToTarget <= targetRadius;
+            if (hit) {
+              setIsHitSplash(true);
+              setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
+            }
           }
 
           return {
@@ -199,15 +211,17 @@ export default function ProjectileMotion() {
           };
         }
 
-        // Target Mid-Air Collision
-        const distToTargetCenter = Math.sqrt(
-          Math.pow(nextX - targetPos.x, 2) + Math.pow(nextY - targetPos.y, 2)
-        );
+        // Target Mid-Air Collision (if target is enabled)
         let hitMidAir = prev.hasHitTarget;
-        if (!hitMidAir && distToTargetCenter <= targetRadius) {
-          hitMidAir = true;
-          setIsHitSplash(true);
-          setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
+        if (showTarget && !hitMidAir) {
+          const distToTargetCenter = Math.sqrt(
+            Math.pow(nextX - targetPos.x, 2) + Math.pow(nextY - targetPos.y, 2)
+          );
+          if (distToTargetCenter <= targetRadius) {
+            hitMidAir = true;
+            setIsHitSplash(true);
+            setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
+          }
         }
 
         return {
@@ -229,7 +243,7 @@ export default function ProjectileMotion() {
         return trail;
       });
     },
-    [g, airDragEnabled, dragCoeff, mass, simTime, flightState.x, flightState.y, targetPos.x, targetPos.y, targetRadius]
+    [g, airDragEnabled, dragCoeff, mass, simTime, flightState.x, flightState.y, targetPos.x, targetPos.y, targetRadius, showTarget]
   );
 
   // Animation Loop
@@ -269,10 +283,10 @@ export default function ProjectileMotion() {
   // Viewport / Coordinate Mapping
   // Canvas domain: X: [ -5, max(80, targetPos.x + 20, theoretical.range + 15) ], Y: [ -2, max(35, theoretical.hMax + 10) ]
   const viewBounds = useMemo(() => {
-    const maxX = Math.max(75, targetPos.x + 18, (theoretical.range || 40) + 15);
-    const maxY = Math.max(30, (theoretical.hMax || 15) + 12);
+    const maxX = Math.max(75, showTarget ? targetPos.x + 18 : 0, (theoretical.range || 40) + 15);
+    const maxY = Math.max(30, showTarget ? targetPos.y + 12 : 0, (theoretical.hMax || 15) + 12);
     return { minX: -6, maxX, minY: -3, maxY };
-  }, [targetPos.x, theoretical.range, theoretical.hMax]);
+  }, [showTarget, targetPos.x, targetPos.y, theoretical.range, theoretical.hMax]);
 
   const svgWidth = 800;
   const svgHeight = 460;
@@ -285,6 +299,58 @@ export default function ProjectileMotion() {
     (y) => svgHeight - ((y - viewBounds.minY) / (viewBounds.maxY - viewBounds.minY)) * svgHeight,
     [viewBounds]
   );
+
+  const fromSvgX = useCallback(
+    (svgX) => viewBounds.minX + (svgX / svgWidth) * (viewBounds.maxX - viewBounds.minX),
+    [viewBounds]
+  );
+  const fromSvgY = useCallback(
+    (svgY) => viewBounds.minY + ((svgHeight - svgY) / svgHeight) * (viewBounds.maxY - viewBounds.minY),
+    [viewBounds]
+  );
+
+  // Target Drag Handlers
+  const handlePointerDownTarget = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingTarget(true);
+  };
+
+  const handlePointerMove = useCallback(
+    (e) => {
+      if (!isDraggingTarget || !svgRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+      const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
+      const rawX = fromSvgX(svgX);
+      const rawY = fromSvgY(svgY);
+      const clampedX = Math.max(5, Math.min(viewBounds.maxX - 5, rawX));
+      const clampedY = Math.max(0, Math.min(viewBounds.maxY - 4, rawY));
+      setTargetPos({
+        x: Math.round(clampedX * 10) / 10,
+        y: Math.round(clampedY * 10) / 10,
+      });
+    },
+    [isDraggingTarget, fromSvgX, fromSvgY, viewBounds.maxX, viewBounds.maxY]
+  );
+
+  const handlePointerUp = useCallback(() => {
+    setIsDraggingTarget(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDraggingTarget) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
+      return () => {
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+        window.removeEventListener('pointercancel', handlePointerUp);
+      };
+    }
+  }, [isDraggingTarget, handlePointerMove, handlePointerUp]);
 
   // SVG Coordinates
   const cannonBaseX = toSvgX(0);
@@ -344,6 +410,14 @@ export default function ProjectileMotion() {
               <div className="stage-overlay-toggles">
                 <button
                   type="button"
+                  className={`toggle-chip ${showTarget ? 'active' : ''}`}
+                  onClick={() => setShowTarget(!showTarget)}
+                  title="Toggle target bullseye on/off"
+                >
+                  🎯 Target: {showTarget ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  type="button"
                   className={`toggle-chip ${showVectors ? 'active' : ''}`}
                   onClick={() => setShowVectors(!showVectors)}
                 >
@@ -378,7 +452,12 @@ export default function ProjectileMotion() {
 
             {/* Ballistics SVG Viewport */}
             <div className="projectile-svg-viewport">
-              <svg className="projectile-svg" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="xMidYMid meet">
+              <svg
+                ref={svgRef}
+                className="projectile-svg"
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                preserveAspectRatio="xMidYMid meet"
+              >
                 <defs>
                   <linearGradient id="cannonMetalGradient" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#475569" />
@@ -455,22 +534,72 @@ export default function ProjectileMotion() {
                   <path d={activeTrailD} className="trajectory-active-path" />
                 )}
 
-                {/* Target Practice Bullseye */}
-                <g transform={`translate(${toSvgX(targetPos.x)}, ${toSvgY(targetPos.y)})`}>
-                  <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(targetPos.y)} className="target-base-post" />
-                  {/* Outer Ring */}
-                  <circle cx="0" cy="0" r={toSvgX(targetRadius) - toSvgX(0)} className="target-outer-ring" />
-                  {/* Mid Ring */}
-                  <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.65} className="target-mid-ring" />
-                  {/* Bullseye Center */}
-                  <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.3} className="target-bullseye-center" />
-                  <text y="-14" textAnchor="middle" fontSize="10" fontWeight="800" fill="#B91C1C" fontFamily="sans-serif">
-                    🎯 Target ({targetPos.x}m)
-                  </text>
-                </g>
+                {/* Draggable Target Practice Bullseye */}
+                {showTarget && (
+                  <g
+                    className={`target-draggable-group ${isDraggingTarget ? 'is-dragging' : ''}`}
+                    transform={`translate(${toSvgX(targetPos.x)}, ${toSvgY(targetPos.y)})`}
+                    onPointerDown={handlePointerDownTarget}
+                  >
+                    {/* Elevated stand/guide or ground post */}
+                    {targetPos.y > 0 ? (
+                      <>
+                        <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(targetPos.y)} className="target-elevation-guide" />
+                        <line x1="0" y1="0" x2="0" y2="16" className="target-base-post" />
+                        <circle cx="0" cy={groundY - toSvgY(targetPos.y)} r="3.5" fill="#DC2626" opacity="0.6" />
+                      </>
+                    ) : (
+                      <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(0)} className="target-base-post" />
+                    )}
+
+                    {/* Drag Active Halo */}
+                    {isDraggingTarget && (
+                      <circle
+                        cx="0"
+                        cy="0"
+                        r={(toSvgX(targetRadius) - toSvgX(0)) + 6}
+                        fill="none"
+                        stroke="#EF4444"
+                        strokeWidth="2"
+                        strokeDasharray="4 4"
+                      />
+                    )}
+
+                    {/* Outer Ring */}
+                    <circle cx="0" cy="0" r={toSvgX(targetRadius) - toSvgX(0)} className="target-outer-ring" />
+                    {/* Mid Ring */}
+                    <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.65} className="target-mid-ring" />
+                    {/* Bullseye Center */}
+                    <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.3} className="target-bullseye-center" />
+
+                    {/* Label Badge with live coordinates and drag prompt */}
+                    <g transform="translate(0, -18)">
+                      <rect
+                        x="-48"
+                        y="-12"
+                        width="96"
+                        height="16"
+                        rx="4"
+                        fill="rgba(255, 253, 245, 0.94)"
+                        stroke="rgba(185, 28, 28, 0.25)"
+                        strokeWidth="1"
+                      />
+                      <text
+                        y="-1"
+                        textAnchor="middle"
+                        fontSize="9.5"
+                        fontWeight="800"
+                        fill="#B91C1C"
+                        fontFamily="sans-serif"
+                      >
+                        🎯 {targetPos.x}m{targetPos.y > 0 ? `, ${targetPos.y}m` : ''} ⠿
+                      </text>
+                    </g>
+                  </g>
+                )}
 
                 {/* Hit Splash Burst Effect */}
-                {isHitSplash && (
+                {showTarget && isHitSplash && (
                   <circle
                     cx={toSvgX(targetPos.x)}
                     cy={toSvgY(targetPos.y)}
@@ -887,38 +1016,98 @@ export default function ProjectileMotion() {
             <div className="bento-subcard surface-purple">
               <div className="card-top-row">
                 <h4 className="card-title-text">🎯 Target Challenge</h4>
-                <span className="doodle-badge">
-                  {targetScore.hits}/{targetScore.attempts} Hits (
-                  {targetScore.attempts > 0 ? Math.round((targetScore.hits / targetScore.attempts) * 100) : 0}%)
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px', color: '#4B5563' }}>
-                <span>
-                  Adjust launch angle and speed to hit the bullseye at <strong>{targetPos.x}m</strong>!
-                </span>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span>Target Distance:</span>
-                  <input
-                    type="range"
-                    min="20"
-                    max="75"
-                    step="1"
-                    value={targetPos.x}
-                    onChange={(e) => setTargetPos({ x: parseInt(e.target.value, 10), y: 0 })}
-                    className="editorial-slider"
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ fontWeight: '800', color: '#B91C1C' }}>{targetPos.x}m</span>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className={`toggle-chip ${showTarget ? 'active' : ''}`}
+                    onClick={() => setShowTarget(!showTarget)}
+                    style={{ fontSize: '10.5px', padding: '2px 8px' }}
+                    title="Enable or disable the target bullseye"
+                  >
+                    {showTarget ? 'Target ON' : 'Target OFF'}
+                  </button>
+                  {showTarget && (
+                    <span className="doodle-badge">
+                      {targetScore.hits}/{targetScore.attempts} Hits (
+                      {targetScore.attempts > 0 ? Math.round((targetScore.hits / targetScore.attempts) * 100) : 0}%)
+                    </span>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setTargetPos({ x: Math.floor(Math.random() * 45) + 25, y: 0 })}
-                  className="action-btn-secondary"
-                  style={{ alignSelf: 'flex-start', padding: '4px 10px', fontSize: '11px', marginTop: '2px' }}
-                >
-                  🎲 Randomize Target
-                </button>
               </div>
+
+              {showTarget ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11.5px', color: '#4B5563' }}>
+                  <span style={{ fontSize: '11px', color: '#6B7280' }}>
+                    💡 <strong>Tip:</strong> Click & drag the target directly on the canvas to place it anywhere!
+                  </span>
+
+                  {/* Distance (X) Slider */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ minWidth: '75px', fontWeight: '600' }}>Distance (X):</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="80"
+                      step="0.5"
+                      value={targetPos.x}
+                      onChange={(e) => setTargetPos((prev) => ({ ...prev, x: parseFloat(e.target.value) }))}
+                      className="editorial-slider"
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontWeight: '800', color: '#B91C1C', minWidth: '45px', textAlign: 'right' }}>
+                      {targetPos.x}m
+                    </span>
+                  </div>
+
+                  {/* Altitude / Height (Y) Slider */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ minWidth: '75px', fontWeight: '600' }}>Altitude (Y):</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="30"
+                      step="0.5"
+                      value={targetPos.y}
+                      onChange={(e) => setTargetPos((prev) => ({ ...prev, y: parseFloat(e.target.value) }))}
+                      className="editorial-slider"
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontWeight: '800', color: '#B91C1C', minWidth: '45px', textAlign: 'right' }}>
+                      {targetPos.y}m
+                    </span>
+                  </div>
+
+                  {/* Quick Action Buttons */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTargetPos({
+                          x: Math.floor(Math.random() * 45) + 25,
+                          y: Math.random() > 0.5 ? Math.floor(Math.random() * 15) : 0,
+                        })
+                      }
+                      className="action-btn-secondary"
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                    >
+                      🎲 Randomize Position
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTargetPos((prev) => ({ ...prev, y: 0 }))}
+                      className="action-btn-secondary"
+                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                      disabled={targetPos.y === 0}
+                    >
+                      ⬇ Ground Level
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '8px', color: '#6B7280', fontSize: '11.5px' }}>
+                  Target is currently disabled. Toggle it back ON above to practice hitting the bullseye!
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -240,28 +240,52 @@
 }
 
 /* Target Bullseye */
+.target-draggable-group {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.05s ease-out;
+}
+
+.target-draggable-group:hover .target-outer-ring {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+}
+
+.target-draggable-group.is-dragging {
+  cursor: grabbing;
+}
+
+.target-draggable-group.is-dragging .target-outer-ring {
+  filter: drop-shadow(0 0 14px rgba(239, 68, 68, 0.9));
+}
+
 .target-base-post {
   stroke: #78350F;
   stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.target-elevation-guide {
+  stroke: rgba(220, 38, 38, 0.4);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
 }
 
 .target-outer-ring {
   fill: #EF4444;
   stroke: #B91C1C;
   stroke-width: 1.5;
-  cursor: ew-resize;
+  transition: filter 0.15s ease;
 }
 
 .target-mid-ring {
   fill: #FFFFFF;
   stroke: #DC2626;
   stroke-width: 1;
-  cursor: ew-resize;
 }
 
 .target-bullseye-center {
   fill: #EF4444;
-  cursor: ew-resize;
 }
 
 .target-hit-splash {
