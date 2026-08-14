@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import './App.css';
 import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
+import MontyHall from './Simulations/Monty Hall/MontyHall';
 
 function App() {
-  const [activeSimulation, setActiveSimulation] = useState('gradient-descent');
+  const [activeSimulation, setActiveSimulation] = useState('monty-hall');
 
   const simulationsList = [
     { id: 'gradient-descent', title: 'Gradient Descent', icon: '📉', tag: 'Optimization' },
+    { id: 'monty-hall', title: 'Monty Hall Problem', icon: '🚪', tag: 'Probability' },
     { id: 'backprop', title: 'Backpropagation', icon: '🧠', tag: 'Coming Soon', disabled: true },
     { id: 'pca', title: 'PCA Projection', icon: '📐', tag: 'Coming Soon', disabled: true },
-    { id: 'kmeans', title: 'K-Means Clustering', icon: '✨', tag: 'Coming Soon', disabled: true },
   ];
 
   return (
@@ -48,6 +49,7 @@ function App() {
       {/* Main Simulation Stage */}
       <main className="simhub-main-stage">
         {activeSimulation === 'gradient-descent' && <GradientDescent />}
+        {activeSimulation === 'monty-hall' && <MontyHall />}
       </main>
     </div>
   );
