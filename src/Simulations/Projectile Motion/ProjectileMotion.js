@@ -25,7 +25,8 @@ export default function ProjectileMotion() {
   // Launch Parameters
   const [initialSpeed, setInitialSpeed] = useState(25); // m/s
   const [angleDeg, setAngleDeg] = useState(45); // degrees (0 to 180)
-  const [initialHeight, setInitialHeight] = useState(5); // meters
+  const [cannonPos, setCannonPos] = useState({ x: 0, y: 5 }); // meters (x0: position, y0: elevation)
+  const [groundEnabled, setGroundEnabled] = useState(true); // Toggle physical ground platform at y=0
   const [gravityPlanet, setGravityPlanet] = useState('earth');
   const [customGravity, setCustomGravity] = useState(9.8);
   const [mass] = useState(1.0); // kg
@@ -59,6 +60,7 @@ export default function ProjectileMotion() {
   const [isHitSplash, setIsHitSplash] = useState(false);
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
   const [isDraggingAim, setIsDraggingAim] = useState(false);
+  const [isDraggingCannon, setIsDraggingCannon] = useState(false);
 
   // Overlays & Analysis View
   const [visualMode, setVisualMode] = useState('physics'); // 'physics' | 'math'
@@ -83,41 +85,53 @@ export default function ProjectileMotion() {
   // Radians
   const angleRad = useMemo(() => (angleDeg * Math.PI) / 180, [angleDeg]);
 
-  // Parabolic Trajectory Equation y(x) = ax^2 + bx + c
+  // Parabolic Trajectory Equation y(x) = y0 + (x - x0)tan(θ) - (g / 2v0^2 cos^2θ)(x - x0)^2
   const parabolaEquation = useMemo(() => {
-    const c = initialHeight;
+    const x0 = cannonPos.x;
+    const y0 = cannonPos.y;
     const b = Math.tan(angleRad);
     const cosVal = Math.cos(angleRad);
     const denom = 2 * initialSpeed * initialSpeed * cosVal * cosVal;
     const a = denom > 0 ? -(g / denom) : 0;
     const bStr = Math.abs(b).toFixed(3);
     const aStr = Math.abs(a).toFixed(4);
+
     let str = 'y(x) = ';
-    if (c > 0) str += `${c.toFixed(1)} `;
-    if (b >= 0) {
-      str += `${c > 0 ? '+ ' : ''}${bStr}x `;
+    if (x0 === 0) {
+      if (y0 !== 0) str += `${y0.toFixed(1)} `;
+      if (b >= 0) {
+        str += `${y0 !== 0 ? '+ ' : ''}${bStr}x `;
+      } else {
+        str += `- ${bStr}x `;
+      }
+      str += `- ${aStr}x²`;
     } else {
-      str += `- ${bStr}x `;
+      const x0Str = x0 > 0 ? `- ${x0.toFixed(1)}` : `+ ${Math.abs(x0).toFixed(1)}`;
+      str += `${y0.toFixed(1)} ${b >= 0 ? '+' : '-'} ${bStr}(x ${x0Str}) - ${aStr}(x ${x0Str})²`;
     }
-    str += `- ${aStr}x²`;
 
     return {
       a,
       b,
-      c,
+      x0,
+      y0,
       displayStr: str,
     };
-  }, [initialHeight, angleRad, initialSpeed, g]);
+  }, [cannonPos.x, cannonPos.y, angleRad, initialSpeed, g]);
 
   // Theoretical Calculations (Vacuum / Analytical)
   const theoretical = useMemo(() => {
     const v0x = initialSpeed * Math.cos(angleRad);
     const v0y = initialSpeed * Math.sin(angleRad);
     const tApex = v0y / g;
-    const hMax = initialHeight + (v0y * v0y) / (2 * g);
-    const discriminant = v0y * v0y + 2 * g * initialHeight;
-    const tFlight = (v0y + Math.sqrt(Math.max(0, discriminant))) / g;
-    const range = v0x * tFlight;
+    const hMax = cannonPos.y + (v0y * v0y) / (2 * g);
+    const discriminant = v0y * v0y + 2 * g * cannonPos.y;
+    let tFlight = 0;
+    let range = 0;
+    if (discriminant >= 0) {
+      tFlight = (v0y + Math.sqrt(discriminant)) / g;
+      range = cannonPos.x + v0x * tFlight;
+    }
 
     return {
       v0x,
@@ -127,7 +141,7 @@ export default function ProjectileMotion() {
       tFlight,
       range,
     };
-  }, [initialSpeed, angleRad, initialHeight, g]);
+  }, [initialSpeed, angleRad, cannonPos.x, cannonPos.y, g]);
 
   // Reset Simulation to Initial Launcher State
   const resetSimulation = useCallback(() => {
@@ -136,26 +150,26 @@ export default function ProjectileMotion() {
     const v0x = initialSpeed * Math.cos(angleRad);
     const v0y = initialSpeed * Math.sin(angleRad);
     setFlightState({
-      x: 0,
-      y: initialHeight,
+      x: cannonPos.x,
+      y: cannonPos.y,
       vx: v0x,
       vy: v0y,
       isLanded: false,
       hasHitTarget: false,
     });
-    setCurrentTrail([{ x: 0, y: initialHeight }]);
+    setCurrentTrail([{ x: cannonPos.x, y: cannonPos.y }]);
     setApexData(null);
     setLandingData(null);
     setIsHitSplash(false);
     lastTimestampRef.current = null;
-  }, [initialSpeed, angleRad, initialHeight]);
+  }, [initialSpeed, angleRad, cannonPos.x, cannonPos.y]);
 
   // Auto-reset when key parameters change and not running
   useEffect(() => {
     if (!isRunning && simTime === 0) {
       resetSimulation();
     }
-  }, [initialSpeed, angleDeg, initialHeight, g, resetSimulation, isRunning, simTime]);
+  }, [initialSpeed, angleDeg, cannonPos.x, cannonPos.y, g, resetSimulation, isRunning, simTime]);
 
   // Fire / Launch Action
   const handleFire = () => {
@@ -214,8 +228,8 @@ export default function ProjectileMotion() {
           setApexData({ x: nextX, y: nextY, time: simTime + dt });
         }
 
-        // Check Ground Collision (y <= 0)
-        if (nextY <= 0) {
+        // Ground Collision (if ground platform is enabled)
+        if (groundEnabled && nextY <= 0) {
           setIsRunning(false);
           const landingX = nextX;
           setLandingData({ x: landingX, time: simTime + dt });
@@ -240,6 +254,20 @@ export default function ProjectileMotion() {
             vy: 0,
             isLanded: true,
             hasHitTarget: hit,
+          };
+        }
+
+        // Out of Bounds check (when ground platform is disabled)
+        if (!groundEnabled && (nextY < -250 || Math.abs(nextX) > 400 || simTime > 30)) {
+          setIsRunning(false);
+          setLandingData({ x: nextX, time: simTime + dt });
+          return {
+            x: nextX,
+            y: nextY,
+            vx: nextVx,
+            vy: nextVy,
+            isLanded: true,
+            hasHitTarget: prev.hasHitTarget,
           };
         }
 
@@ -275,7 +303,7 @@ export default function ProjectileMotion() {
         return trail;
       });
     },
-    [g, airDragEnabled, dragCoeff, mass, simTime, flightState.x, flightState.y, targetPos.x, targetPos.y, targetRadius, showTarget]
+    [g, airDragEnabled, dragCoeff, mass, simTime, flightState.x, flightState.y, targetPos.x, targetPos.y, targetRadius, showTarget, groundEnabled]
   );
 
   // Animation Loop
@@ -325,41 +353,71 @@ export default function ProjectileMotion() {
     return niceFraction * power;
   };
 
-  // Viewport / Coordinate Mapping
+  // Viewport / Coordinate Mapping (1:1 Isometric Aspect Ratio for Perfect Angle Match)
   const viewBounds = useMemo(() => {
-    const range = theoretical.range || 0;
-    
+    const targetAspect = 800 / 460;
+
     // Key points that must be comfortably visible
-    const relevantX = [0];
+    const relevantX = [cannonPos.x];
     if (showTarget) relevantX.push(targetPos.x);
-    if (range) relevantX.push(range);
+    if (groundEnabled && theoretical.range) relevantX.push(theoretical.range);
     if (isRunning || simTime > 0) relevantX.push(flightState.x);
 
     const minObservedX = Math.min(...relevantX);
     const maxObservedX = Math.max(...relevantX);
 
-    // Padding margins
-    let minX = minObservedX < -2 ? minObservedX - 15 : -8;
-    let maxX = maxObservedX > 2 ? maxObservedX + 15 : 20;
+    // Initial padding margins
+    let minX = minObservedX - 12;
+    let maxX = maxObservedX + 12;
 
-    // Default comfortable boundaries based on aim direction
-    if (angleDeg > 90) {
-      minX = Math.min(minX, -60);
-      maxX = Math.max(maxX, 10);
-    } else {
-      minX = Math.min(minX, -8);
-      maxX = Math.max(maxX, 65);
+    if (maxX - minX < 36) {
+      const mid = (minX + maxX) / 2;
+      minX = mid - 18;
+      maxX = mid + 18;
     }
 
-    const maxY = Math.max(30, showTarget ? targetPos.y + 12 : 0, (theoretical.hMax || 15) + 12);
-    return { minX, maxX, minY: -3, maxY };
-  }, [showTarget, targetPos.x, targetPos.y, theoretical.range, theoretical.hMax, angleDeg, isRunning, simTime, flightState.x]);
+    const relevantY = [cannonPos.y];
+    if (showTarget) relevantY.push(targetPos.y);
+    if (theoretical.hMax) relevantY.push(theoretical.hMax);
+    if (isRunning || simTime > 0) relevantY.push(flightState.y);
+    if (groundEnabled) relevantY.push(0);
 
-  // Dynamic Grid Marks for X with Adaptive Step (prevents number squeezing when zoomed out)
+    const minObservedY = Math.min(...relevantY);
+    const maxObservedY = Math.max(...relevantY);
+
+    let minY = groundEnabled ? -2.5 : Math.min(-6, minObservedY - 8);
+    let maxY = Math.max(18, maxObservedY + 8);
+
+    let spanX = maxX - minX;
+    let spanY = maxY - minY;
+    const currentAspect = spanX / spanY;
+
+    if (currentAspect < targetAspect) {
+      // Widen X symmetrically to guarantee 1:1 pixel aspect ratio
+      const desiredSpanX = spanY * targetAspect;
+      const extraX = (desiredSpanX - spanX) / 2;
+      minX -= extraX;
+      maxX += extraX;
+    } else {
+      // Heighten Y to guarantee 1:1 pixel aspect ratio
+      const desiredSpanY = spanX / targetAspect;
+      const extraY = desiredSpanY - spanY;
+      if (groundEnabled) {
+        minY = -2.5;
+        maxY = minY + desiredSpanY;
+      } else {
+        minY -= extraY / 2;
+        maxY += extraY / 2;
+      }
+    }
+
+    return { minX, maxX, minY, maxY };
+  }, [showTarget, targetPos.x, targetPos.y, cannonPos.x, cannonPos.y, theoretical.range, theoretical.hMax, groundEnabled, isRunning, simTime, flightState.x, flightState.y]);
+
+  // Dynamic Grid Marks for X with Adaptive Step
   const xGridMarks = useMemo(() => {
     const marks = [];
     const span = viewBounds.maxX - viewBounds.minX;
-    // Dynamically choose step size (e.g. 10m, 20m, 50m, 100m) to keep ~7 to 10 ticks max
     const step = calculateNiceStep(span, 8);
     const start = Math.floor(viewBounds.minX / step) * step;
     const end = Math.ceil(viewBounds.maxX / step) * step;
@@ -376,10 +434,10 @@ export default function ProjectileMotion() {
     const marks = [];
     const span = viewBounds.maxY - viewBounds.minY;
     const step = calculateNiceStep(span, 6);
-    const start = Math.max(step, Math.floor(viewBounds.minY / step) * step);
+    const start = Math.floor(viewBounds.minY / step) * step;
     const end = Math.ceil(viewBounds.maxY / step) * step;
     for (let gy = start; gy <= end; gy += step) {
-      if (gy > 0 && gy <= viewBounds.maxY - step * 0.15) {
+      if (gy !== 0 && gy >= viewBounds.minY + step * 0.15 && gy <= viewBounds.maxY - step * 0.15) {
         marks.push(gy);
       }
     }
@@ -408,15 +466,21 @@ export default function ProjectileMotion() {
   );
 
   // SVG Base Coordinates
-  const cannonBaseX = toSvgX(0);
-  const cannonBaseY = toSvgY(initialHeight);
+  const cannonBaseX = toSvgX(cannonPos.x);
+  const cannonBaseY = toSvgY(cannonPos.y);
   const groundY = toSvgY(0);
 
-  // Pointer Aim & Target Drag Handlers
+  // Pointer Drag Handlers (Aiming, Cannon Moving, Target Moving)
   const handlePointerDownAim = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingAim(true);
+  };
+
+  const handlePointerDownCannon = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingCannon(true);
   };
 
   const handlePointerDownTarget = (e) => {
@@ -427,42 +491,56 @@ export default function ProjectileMotion() {
 
   const handlePointerMove = useCallback(
     (e) => {
-      if ((!isDraggingAim && !isDraggingTarget) || !svgRef.current) return;
+      if ((!isDraggingAim && !isDraggingTarget && !isDraggingCannon) || !svgRef.current) return;
       const rect = svgRef.current.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
       const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
 
       if (isDraggingAim) {
-        const dx = svgX - cannonBaseX;
-        const dy = svgY - cannonBaseY;
+        const dx = svgX - toSvgX(cannonPos.x);
+        const dy = svgY - toSvgY(cannonPos.y);
         let deg = Math.atan2(-dy, dx) * (180 / Math.PI);
         if (deg < 0) {
           deg = dx >= 0 ? 0 : 180;
         }
         deg = Math.max(0, Math.min(180, Math.round(deg)));
         setAngleDeg(deg);
+      } else if (isDraggingCannon) {
+        const rawX = fromSvgX(svgX);
+        const rawY = fromSvgY(svgY);
+        const clampedX = Math.max(viewBounds.minX + 3, Math.min(viewBounds.maxX - 3, rawX));
+        const clampedY = groundEnabled
+          ? Math.max(0, Math.min(viewBounds.maxY - 3, rawY))
+          : Math.max(viewBounds.minY + 3, Math.min(viewBounds.maxY - 3, rawY));
+        setCannonPos({
+          x: Math.round(clampedX * 10) / 10,
+          y: Math.round(clampedY * 10) / 10,
+        });
       } else if (isDraggingTarget) {
         const rawX = fromSvgX(svgX);
         const rawY = fromSvgY(svgY);
-        const clampedX = Math.max(viewBounds.minX + 4, Math.min(viewBounds.maxX - 4, rawX));
-        const clampedY = Math.max(0, Math.min(viewBounds.maxY - 4, rawY));
+        const clampedX = Math.max(viewBounds.minX + 3, Math.min(viewBounds.maxX - 3, rawX));
+        const clampedY = groundEnabled
+          ? Math.max(0, Math.min(viewBounds.maxY - 3, rawY))
+          : Math.max(viewBounds.minY + 3, Math.min(viewBounds.maxY - 3, rawY));
         setTargetPos({
           x: Math.round(clampedX * 10) / 10,
           y: Math.round(clampedY * 10) / 10,
         });
       }
     },
-    [isDraggingAim, isDraggingTarget, cannonBaseX, cannonBaseY, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.maxY]
+    [isDraggingAim, isDraggingCannon, isDraggingTarget, cannonPos.x, cannonPos.y, toSvgX, toSvgY, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.minY, viewBounds.maxY, groundEnabled]
   );
 
   const handlePointerUp = useCallback(() => {
     setIsDraggingTarget(false);
     setIsDraggingAim(false);
+    setIsDraggingCannon(false);
   }, []);
 
   useEffect(() => {
-    if (isDraggingTarget || isDraggingAim) {
+    if (isDraggingTarget || isDraggingAim || isDraggingCannon) {
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       window.addEventListener('pointercancel', handlePointerUp);
@@ -472,7 +550,7 @@ export default function ProjectileMotion() {
         window.removeEventListener('pointercancel', handlePointerUp);
       };
     }
-  }, [isDraggingTarget, isDraggingAim, handlePointerMove, handlePointerUp]);
+  }, [isDraggingTarget, isDraggingAim, isDraggingCannon, handlePointerMove, handlePointerUp]);
 
   const projSvgX = toSvgX(flightState.x);
   const projSvgY = toSvgY(flightState.y);
@@ -487,18 +565,20 @@ export default function ProjectileMotion() {
   // Generate Predicted Path D-string
   const predictedPathD = useMemo(() => {
     const points = [];
-    const stepCount = 50;
-    const dt = theoretical.tFlight / stepCount;
+    const stepCount = 60;
+    const maxT = groundEnabled && theoretical.tFlight > 0 ? theoretical.tFlight : 5.0;
+    const dt = maxT / stepCount;
     for (let i = 0; i <= stepCount; i++) {
       const t = i * dt;
-      const x = theoretical.v0x * t;
-      const y = initialHeight + theoretical.v0y * t - 0.5 * g * t * t;
-      if (y >= 0) {
-        points.push(`${toSvgX(x)},${toSvgY(y)}`);
+      const x = cannonPos.x + theoretical.v0x * t;
+      const y = cannonPos.y + theoretical.v0y * t - 0.5 * g * t * t;
+      if (groundEnabled && y < 0) {
+        break;
       }
+      points.push(`${toSvgX(x)},${toSvgY(y)}`);
     }
     return points.length > 0 ? `M ${points.join(' L ')}` : '';
-  }, [theoretical, initialHeight, g, toSvgX, toSvgY]);
+  }, [theoretical, cannonPos.x, cannonPos.y, g, groundEnabled, toSvgX, toSvgY]);
 
   // Current Active Trail D-string
   const activeTrailD = useMemo(() => {
@@ -542,6 +622,14 @@ export default function ProjectileMotion() {
 
               {/* View Overlays */}
               <div className="stage-overlay-toggles">
+                <button
+                  type="button"
+                  className={`toggle-chip ${groundEnabled ? 'active' : ''}`}
+                  onClick={() => setGroundEnabled(!groundEnabled)}
+                  title="Toggle ground platform on/off"
+                >
+                  🌍 Ground: {groundEnabled ? 'ON' : 'OFF'}
+                </button>
                 <button
                   type="button"
                   className={`toggle-chip ${showAxes ? 'active' : ''}`}
@@ -654,7 +742,7 @@ export default function ProjectileMotion() {
                 {/* Sky / Cartesian Grid Marks */}
                 {xGridMarks.map((gx) => (
                   <g key={`grid-x-${gx}`}>
-                    <line x1={toSvgX(gx)} y1={0} x2={toSvgX(gx)} y2={groundY} className="grid-line" />
+                    <line x1={toSvgX(gx)} y1={0} x2={toSvgX(gx)} y2={groundEnabled ? groundY : svgHeight} className="grid-line" />
                   </g>
                 ))}
 
@@ -665,15 +753,15 @@ export default function ProjectileMotion() {
                 ))}
 
                 {/* Physics Mode: Ground Platform & Dirt Fill */}
-                {visualMode === 'physics' && (
+                {visualMode === 'physics' && groundEnabled && (
                   <>
                     <rect x={0} y={groundY} width={svgWidth} height={svgHeight - groundY} fill="#E2DDD2" />
                     <line x1={0} y1={groundY} x2={svgWidth} y2={groundY} className="grass-top-rim" />
                   </>
                 )}
 
-                {/* Math Mode: Clean y = 0 Reference Line */}
-                {visualMode === 'math' && !showAxes && (
+                {/* Math Mode / Groundless: Clean y = 0 Reference Line */}
+                {(!showAxes || !groundEnabled) && (
                   <line x1={0} y1={groundY} x2={svgWidth} y2={groundY} stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="4 4" />
                 )}
 
@@ -712,7 +800,7 @@ export default function ProjectileMotion() {
                     {/* Vertical Y-Axis */}
                     <line
                       x1={toSvgX(0)}
-                      y1={groundY + 8}
+                      y1={groundEnabled ? groundY + 8 : svgHeight - 12}
                       x2={toSvgX(0)}
                       y2={16}
                       className="coord-axis-line"
@@ -767,33 +855,34 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Physics Mode: Elevation Cliff */}
-                {visualMode === 'physics' && initialHeight > 0 && (
+                {/* Physics Mode: Elevation Cliff (Ground Supported) */}
+                {visualMode === 'physics' && groundEnabled && cannonPos.y > 0 && (
                   <g>
                     <rect
-                      x={toSvgX(-2.5)}
-                      y={toSvgY(initialHeight)}
-                      width={toSvgX(2.5) - toSvgX(-2.5)}
-                      height={groundY - toSvgY(initialHeight)}
+                      x={toSvgX(cannonPos.x - 2.5)}
+                      y={toSvgY(cannonPos.y)}
+                      width={toSvgX(cannonPos.x + 2.5) - toSvgX(cannonPos.x - 2.5)}
+                      height={groundY - toSvgY(cannonPos.y)}
                       fill="#E2E8F0"
                       stroke="#94A3B8"
                       strokeWidth="1.5"
                       rx="4"
                     />
-                    <line x1={toSvgX(-2.5)} y1={toSvgY(initialHeight)} x2={toSvgX(2.5)} y2={toSvgY(initialHeight)} stroke="#84CC16" strokeWidth="3" />
-                    <text x={toSvgX(0)} y={toSvgY(initialHeight / 2) + 4} fill="#64748B" fontSize="10" fontWeight="700" textAnchor="middle" fontFamily="monospace">
-                      h₀ = {initialHeight}m
+                    <line x1={toSvgX(cannonPos.x - 2.5)} y1={toSvgY(cannonPos.y)} x2={toSvgX(cannonPos.x + 2.5)} y2={toSvgY(cannonPos.y)} stroke="#84CC16" strokeWidth="3" />
+                    <text x={toSvgX(cannonPos.x)} y={toSvgY(cannonPos.y / 2) + 4} fill="#64748B" fontSize="10" fontWeight="700" textAnchor="middle" fontFamily="monospace">
+                      h₀ = {cannonPos.y}m
                     </text>
                   </g>
                 )}
 
-                {/* Math Mode: Elevation Guide & Initial Point (0, h0) */}
-                {visualMode === 'math' && initialHeight > 0 && (
+                {/* Math Mode: Elevation Guide & Initial Point P0(x0, y0) */}
+                {visualMode === 'math' && (
                   <g>
-                    <line x1={toSvgX(0)} y1={groundY} x2={toSvgX(0)} y2={toSvgY(initialHeight)} stroke="#2563EB" strokeWidth="1.5" strokeDasharray="3 3" />
-                    <circle cx={toSvgX(0)} cy={toSvgY(initialHeight)} r="4" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
-                    <text x={toSvgX(0) - 8} y={toSvgY(initialHeight) + 4} textAnchor="end" fontSize="10" fontWeight="700" fill="#2563EB" fontFamily="monospace">
-                      P₀ (0, {initialHeight})
+                    {groundEnabled && cannonPos.y !== 0 && (
+                      <line x1={toSvgX(cannonPos.x)} y1={groundY} x2={toSvgX(cannonPos.x)} y2={toSvgY(cannonPos.y)} stroke="#2563EB" strokeWidth="1.5" strokeDasharray="3 3" />
+                    )}
+                    <text x={toSvgX(cannonPos.x) - 8} y={toSvgY(cannonPos.y) + 4} textAnchor="end" fontSize="10" fontWeight="700" fill="#2563EB" fontFamily="monospace">
+                      P₀ ({cannonPos.x.toFixed(1)}, {cannonPos.y.toFixed(1)})
                     </text>
                   </g>
                 )}
@@ -833,9 +922,10 @@ export default function ProjectileMotion() {
                     className={`target-draggable-group ${isDraggingTarget ? 'is-dragging' : ''}`}
                     transform={`translate(${toSvgX(targetPos.x)}, ${toSvgY(targetPos.y)})`}
                     onPointerDown={handlePointerDownTarget}
+                    title="Click and drag target to place anywhere"
                   >
-                    {/* Elevated stand/guide or ground post */}
-                    {visualMode !== 'math' && (
+                    {/* Elevated stand/guide or ground post (Physics only) */}
+                    {visualMode !== 'math' && groundEnabled && (
                       targetPos.y > 0 ? (
                         <>
                           <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(targetPos.y)} className="target-elevation-guide" />
@@ -897,7 +987,7 @@ export default function ProjectileMotion() {
                         fill="#B91C1C"
                         fontFamily="sans-serif"
                       >
-                        🎯 {targetPos.x}m{targetPos.y > 0 ? `, ${targetPos.y}m` : ''} ⠿
+                        🎯 {targetPos.x}m{targetPos.y !== 0 ? `, ${targetPos.y}m` : ''} ⠿
                       </text>
                     </g>
                   </g>
@@ -920,7 +1010,7 @@ export default function ProjectileMotion() {
                 {showApexMarker && (apexData || (simTime === 0 && theoretical.hMax > 0)) && (
                   <g>
                     {(() => {
-                      const apexX = apexData ? apexData.x : theoretical.v0x * theoretical.tApex;
+                      const apexX = apexData ? apexData.x : cannonPos.x + theoretical.v0x * theoretical.tApex;
                       const apexY = apexData ? apexData.y : theoretical.hMax;
                       const sX = toSvgX(apexX);
                       const sY = toSvgY(apexY);
@@ -937,8 +1027,8 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Impact / Range Marker / Math Root */}
-                {(landingData || (simTime === 0 && Math.abs(theoretical.range) > 0.1)) && (
+                {/* Impact / Range Marker / Math Root (when ground enabled) */}
+                {groundEnabled && (landingData || (simTime === 0 && Math.abs(theoretical.range) > 0.1)) && (
                   <g>
                     {(() => {
                       const rX = landingData ? landingData.x : theoretical.range;
@@ -955,9 +1045,14 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Launcher: Physics Cannon vs Math Vector Origin */}
+                {/* Launcher: Physics Cannon vs Math Vector Origin (Draggable Launcher Base) */}
                 {visualMode === 'physics' ? (
                   <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                    {/* Drag Halo for Cannon Base when moving */}
+                    {isDraggingCannon && (
+                      <circle cx="0" cy="0" r="28" fill="none" stroke="#2563EB" strokeWidth="2" strokeDasharray="4 4" />
+                    )}
+
                     {/* Protractor Angle Arc */}
                     <path
                       d={`M 35 0 A 35 35 0 0 0 ${35 * Math.cos(angleRad)} ${-35 * Math.sin(angleRad)}`}
@@ -998,14 +1093,31 @@ export default function ProjectileMotion() {
                       <circle cx="36" cy="0" r="3.5" fill="#F59E0B" />
                     </g>
 
-                    {/* Cannon Carriage / Wheels */}
-                    <ellipse cx="0" cy="4" rx="14" ry="10" className="cannon-platform" />
-                    <circle cx="0" cy="6" r="9" className="cannon-wheel" />
-                    <circle cx="0" cy="6" r="3" fill="#94A3B8" />
+                    {/* Draggable Cannon Carriage & Platform */}
+                    <g
+                      className={`cannon-base-group ${isDraggingCannon ? 'is-dragging' : ''}`}
+                      onPointerDown={handlePointerDownCannon}
+                      style={{ cursor: isDraggingCannon ? 'grabbing' : 'grab' }}
+                      title="Click & drag cannon carriage to reposition (X, Y)"
+                    >
+                      <ellipse cx="0" cy="4" rx="15" ry="10" className="cannon-platform" />
+                      <circle cx="0" cy="6" r="9" className="cannon-wheel" />
+                      <circle cx="0" cy="6" r="3" fill="#94A3B8" />
+
+                      {/* Floating Thruster / Hover Glow when in groundless mode or elevated */}
+                      {(!groundEnabled || cannonPos.y > 0) && (
+                        <ellipse cx="0" cy="14" rx="12" ry="3" fill="rgba(37, 99, 235, 0.3)" opacity="0.8" />
+                      )}
+                    </g>
                   </g>
                 ) : (
-                  /* Math Mode: Vector Launcher Arrow v0 with Draggable Tip */
+                  /* Math Mode: Vector Launcher Arrow v0 with Draggable Origin and Tip */
                   <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                    {/* Drag Halo for Origin Point P0 */}
+                    {isDraggingCannon && (
+                      <circle cx="0" cy="0" r="22" fill="none" stroke="#2563EB" strokeWidth="2" strokeDasharray="3 3" />
+                    )}
+
                     {/* Angle Sector Arc */}
                     <path
                       d={`M 38 0 A 38 38 0 0 0 ${38 * Math.cos(angleRad)} ${-38 * Math.sin(angleRad)}`}
@@ -1041,7 +1153,6 @@ export default function ProjectileMotion() {
                         strokeWidth="2.8"
                         markerEnd="url(#v0VectorArrowhead)"
                       />
-                      <circle cx="0" cy="0" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
                       {/* Draggable Vector Tip Handle */}
                       <circle
                         cx={50 * Math.cos(angleRad)}
@@ -1060,6 +1171,17 @@ export default function ProjectileMotion() {
                         fill="#2563EB"
                       />
                     </g>
+
+                    {/* Draggable Origin Point P0 */}
+                    <g
+                      onPointerDown={handlePointerDownCannon}
+                      style={{ cursor: isDraggingCannon ? 'grabbing' : 'grab' }}
+                      title="Click & drag origin P0 to reposition (X, Y)"
+                    >
+                      <circle cx="0" cy="0" r="9" fill="rgba(37, 99, 235, 0.18)" />
+                      <circle cx="0" cy="0" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
+                    </g>
+
                     <text
                       x={58 * Math.cos(angleRad)}
                       y={-58 * Math.sin(angleRad)}
@@ -1233,20 +1355,38 @@ export default function ProjectileMotion() {
 
             <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
 
-            {/* Initial Height h0 */}
+            {/* Launcher Position (x0, y0) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>
-                h₀: {initialHeight}m
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }} title="Launcher Horizontal Coordinate">
+                x₀: {cannonPos.x}m
               </span>
               <input
                 type="range"
-                min="0"
-                max="25"
-                step="1"
-                value={initialHeight}
-                onChange={(e) => setInitialHeight(parseInt(e.target.value, 10))}
+                min="-60"
+                max="60"
+                step="0.5"
+                value={cannonPos.x}
+                onChange={(e) => setCannonPos((p) => ({ ...p, x: parseFloat(e.target.value) }))}
                 className="editorial-slider"
-                style={{ width: '65px', margin: 0 }}
+                style={{ width: '60px', margin: 0 }}
+                title="Adjust launcher horizontal position"
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }} title="Launcher Vertical Coordinate">
+                y₀: {cannonPos.y}m
+              </span>
+              <input
+                type="range"
+                min={groundEnabled ? 0 : -30}
+                max="30"
+                step="0.5"
+                value={cannonPos.y}
+                onChange={(e) => setCannonPos((p) => ({ ...p, y: parseFloat(e.target.value) }))}
+                className="editorial-slider"
+                style={{ width: '60px', margin: 0 }}
+                title="Adjust launcher vertical position"
               />
             </div>
 
