@@ -28,7 +28,7 @@ export default function ProjectileMotion() {
   const [cannonPos, setCannonPos] = useState({ x: 0, y: 5 }); // meters (x0: position, y0: elevation)
   const [groundEnabled, setGroundEnabled] = useState(true); // Toggle physical ground platform at y=0
   const [gravityPlanet, setGravityPlanet] = useState('earth');
-  const [customGravity, setCustomGravity] = useState(9.8);
+  const [customGravity] = useState(9.8);
   const [mass] = useState(1.0); // kg
   const [airDragEnabled, setAirDragEnabled] = useState(false);
   const [dragCoeff] = useState(0.04);
@@ -578,8 +578,77 @@ export default function ProjectileMotion() {
       });
     };
 
+    // Multi-touch Pinch-to-Zoom & Pan Handlers
+    let touchStartDist = null;
+    let initialZoomLevel = 1.0;
+    let touchStartMidX = 0;
+    let touchStartMidY = 0;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        touchStartDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        touchStartMidX = (t0.clientX + t1.clientX) / 2;
+        touchStartMidY = (t0.clientY + t1.clientY) / 2;
+        setZoomLevel((currentZoom) => {
+          initialZoomLevel = currentZoom;
+          return currentZoom;
+        });
+        setPanOffset((currentPan) => {
+          touchStartPanX = currentPan.x;
+          touchStartPanY = currentPan.y;
+          return currentPan;
+        });
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && touchStartDist) {
+        e.preventDefault();
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        const currentDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        if (currentDist <= 0) return;
+        const pinchRatio = currentDist / touchStartDist;
+        const nextZoom = Math.max(0.25, Math.min(6.0, Math.round(initialZoomLevel * pinchRatio * 100) / 100));
+        setZoomLevel(nextZoom);
+
+        // 2-finger pan
+        const currentMidX = (t0.clientX + t1.clientX) / 2;
+        const currentMidY = (t0.clientY + t1.clientY) / 2;
+        const dxPx = currentMidX - touchStartMidX;
+        const dyPx = currentMidY - touchStartMidY;
+        const metersPerPx = (viewBounds.maxX - viewBounds.minX) / (svgWidth * nextZoom);
+        setPanOffset({
+          x: Math.round((touchStartPanX - dxPx * metersPerPx) * 10) / 10,
+          y: Math.round((touchStartPanY + dyPx * metersPerPx) * 10) / 10,
+        });
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) {
+        touchStartDist = null;
+      }
+    };
+
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
   }, [fromSvgX, fromSvgY, viewBounds, svgWidth, svgHeight]);
 
   // Pointer Drag Handlers (Aiming, Cannon Moving, Target Moving, Canvas Panning)
@@ -1568,14 +1637,14 @@ export default function ProjectileMotion() {
 
         {/* Bottom Parameters & Controls Area (Single-Row Toolbar) */}
         <div className="workbench-bottom-controls">
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Playback Controls */}
-            <div className="playback-buttons-group" style={{ display: 'flex', gap: '6px' }}>
+          <div className="stage-door-count-control" style={{ gap: '8px', flexWrap: 'wrap' }}>
+            {/* 1. Playback Group */}
+            <div className="playback-buttons-group" style={{ display: 'flex', gap: '4px' }}>
               <button
                 type="button"
                 className={`action-btn-primary ${isRunning ? 'btn-pause' : 'btn-play'}`}
                 onClick={handlePlayPause}
-                style={{ padding: '6px 14px', fontSize: '12px' }}
+                style={{ padding: '5px 12px', fontSize: '11.5px' }}
               >
                 {isRunning
                   ? '⏸ Pause'
@@ -1590,7 +1659,7 @@ export default function ProjectileMotion() {
                 className="action-btn-secondary"
                 onClick={() => stepPhysics(0.05)}
                 disabled={isRunning || flightState.isLanded}
-                style={{ padding: '6px 10px', fontSize: '12px' }}
+                style={{ padding: '5px 8px', fontSize: '11.5px' }}
               >
                 ⏭ Step
               </button>
@@ -1598,7 +1667,7 @@ export default function ProjectileMotion() {
                 type="button"
                 className="action-btn-secondary"
                 onClick={resetSimulation}
-                style={{ padding: '6px 10px', fontSize: '12px' }}
+                style={{ padding: '5px 8px', fontSize: '11.5px' }}
               >
                 ↺ Reset
               </button>
@@ -1610,17 +1679,17 @@ export default function ProjectileMotion() {
                   const currentIndex = speeds.indexOf(playbackSpeed);
                   setPlaybackSpeed(speeds[(currentIndex + 1) % speeds.length]);
                 }}
-                style={{ width: '75px', padding: '6px 4px', fontSize: '12px' }}
+                style={{ width: '68px', padding: '5px 2px', fontSize: '11px' }}
               >
-                {playbackSpeed === 500 ? '🐢 0.5x' : playbackSpeed === 250 ? '🚶 1x' : playbackSpeed === 120 ? '🏃 2x' : playbackSpeed === 40 ? '🚀 5x' : 'Speed'}
+                {playbackSpeed === 500 ? '🐢 0.5x' : playbackSpeed === 250 ? '🚶 1x' : playbackSpeed === 120 ? '🏃 2x' : '🚀 5x'}
               </button>
             </div>
 
-            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
+            <div style={{ width: '1px', height: '22px', background: 'rgba(0,0,0,0.1)' }} />
 
-            {/* Launch Angle θ */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>
+            {/* 2. Angle Group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>
                 θ: {angleDeg}°
               </span>
               <input
@@ -1631,16 +1700,16 @@ export default function ProjectileMotion() {
                 value={angleDeg}
                 onChange={(e) => setAngleDeg(parseInt(e.target.value, 10))}
                 className="editorial-slider"
-                style={{ width: '75px', margin: 0 }}
+                style={{ width: '65px', margin: 0 }}
               />
               <select
                 value={angleDeg}
                 onChange={(e) => setAngleDeg(parseInt(e.target.value, 10))}
                 style={{
-                  padding: '5px 6px',
+                  padding: '4px 6px',
                   borderRadius: '6px',
                   border: '1px solid rgba(0,0,0,0.15)',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontWeight: '600',
                   background: '#FFFFFF',
                   cursor: 'pointer',
@@ -1654,12 +1723,12 @@ export default function ProjectileMotion() {
               </select>
             </div>
 
-            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
+            <div style={{ width: '1px', height: '22px', background: 'rgba(0,0,0,0.1)' }} />
 
-            {/* Launch Speed v0 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>
-                v₀: {initialSpeed} m/s
+            {/* 3. Speed Group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }}>
+                v₀: {initialSpeed}m/s
               </span>
               <input
                 type="range"
@@ -1669,59 +1738,22 @@ export default function ProjectileMotion() {
                 value={initialSpeed}
                 onChange={(e) => setInitialSpeed(parseInt(e.target.value, 10))}
                 className="editorial-slider"
-                style={{ width: '75px', margin: 0 }}
+                style={{ width: '65px', margin: 0 }}
               />
             </div>
 
-            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
+            <div style={{ width: '1px', height: '22px', background: 'rgba(0,0,0,0.1)' }} />
 
-            {/* Launcher Position (x0, y0) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }} title="Launcher Horizontal Coordinate">
-                x₀: {cannonPos.x}m
-              </span>
-              <input
-                type="range"
-                min="-60"
-                max="60"
-                step="0.5"
-                value={cannonPos.x}
-                onChange={(e) => setCannonPos((p) => ({ ...p, x: parseFloat(e.target.value) }))}
-                className="editorial-slider"
-                style={{ width: '60px', margin: 0 }}
-                title="Adjust launcher horizontal position"
-              />
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: '#1E293B', whiteSpace: 'nowrap' }} title="Launcher Vertical Coordinate">
-                y₀: {cannonPos.y}m
-              </span>
-              <input
-                type="range"
-                min={groundEnabled ? 0 : -30}
-                max="30"
-                step="0.5"
-                value={cannonPos.y}
-                onChange={(e) => setCannonPos((p) => ({ ...p, y: parseFloat(e.target.value) }))}
-                className="editorial-slider"
-                style={{ width: '60px', margin: 0 }}
-                title="Adjust launcher vertical position"
-              />
-            </div>
-
-            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
-
-            {/* Gravity Planet Presets */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* 4. Gravity & Environment Group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <select
                 value={gravityPlanet}
                 onChange={(e) => setGravityPlanet(e.target.value)}
                 style={{
-                  padding: '5px 8px',
+                  padding: '4px 6px',
                   borderRadius: '6px',
                   border: '1px solid rgba(0,0,0,0.15)',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontWeight: '600',
                   background: '#FFFFFF',
                   cursor: 'pointer',
@@ -1734,31 +1766,16 @@ export default function ProjectileMotion() {
                 ))}
               </select>
 
-              {gravityPlanet === 'custom' && (
-                <input
-                  type="number"
-                  min="0.1"
-                  max="50"
-                  step="0.1"
-                  value={customGravity}
-                  onChange={(e) => setCustomGravity(parseFloat(e.target.value) || 9.8)}
-                  style={{ width: '50px', padding: '4px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                />
-              )}
+              <button
+                type="button"
+                className={`toggle-chip ${airDragEnabled ? 'active' : ''}`}
+                onClick={() => setAirDragEnabled(!airDragEnabled)}
+                title="Toggle atmospheric air drag"
+                style={{ fontSize: '11px', padding: '4px 8px' }}
+              >
+                💨 Drag: {airDragEnabled ? 'ON' : 'OFF'}
+              </button>
             </div>
-
-            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
-
-            {/* Air Drag Toggle */}
-            <button
-              type="button"
-              className={`toggle-chip ${airDragEnabled ? 'active' : ''}`}
-              onClick={() => setAirDragEnabled(!airDragEnabled)}
-              title="Toggle atmospheric drag"
-              style={{ fontSize: '11.5px', padding: '5px 10px' }}
-            >
-              💨 Drag: {airDragEnabled ? 'ON' : 'OFF'}
-            </button>
           </div>
         </div>
       </div>

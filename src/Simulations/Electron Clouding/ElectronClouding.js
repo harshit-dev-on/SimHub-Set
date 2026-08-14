@@ -241,13 +241,18 @@ function ElectronClouding() {
     };
     updateCameraPos();
 
-    // Mouse & Touch Pointer Orbit Controls
+    // Mouse & Touch Pointer Orbit Controls + Multi-touch Pinch to Zoom
+    let touchStartDist = null;
+    let initialCameraDist = null;
+
     const onPointerDown = (e) => {
+      if (e.pointerType === 'touch') return; // Handled by touch events for multi-touch support
       isDraggingRef.current = true;
       previousMouseRef.current = { x: e.clientX, y: e.clientY };
     };
 
     const onPointerMove = (e) => {
+      if (e.pointerType === 'touch') return;
       if (!isDraggingRef.current) return;
       const deltaX = e.clientX - previousMouseRef.current.x;
       const deltaY = e.clientY - previousMouseRef.current.y;
@@ -261,7 +266,8 @@ function ElectronClouding() {
       updateCameraPos();
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (e) => {
+      if (e.pointerType === 'touch') return;
       isDraggingRef.current = false;
     };
 
@@ -272,10 +278,64 @@ function ElectronClouding() {
       updateCameraPos();
     };
 
+    // Touch Event Handlers: 1-Finger Orbit, 2-Finger Pinch-to-Zoom
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        touchStartDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        initialCameraDist = cameraDistanceRef.current;
+        isDraggingRef.current = false;
+      } else if (e.touches.length === 1) {
+        touchStartDist = null;
+        isDraggingRef.current = true;
+        previousMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && touchStartDist) {
+        e.preventDefault();
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        const currentDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        if (currentDist <= 0) return;
+        const pinchRatio = touchStartDist / currentDist;
+        cameraDistanceRef.current = Math.max(6, Math.min(220, initialCameraDist * pinchRatio));
+        updateCameraPos();
+      } else if (e.touches.length === 1 && isDraggingRef.current) {
+        e.preventDefault();
+        const deltaX = e.touches[0].clientX - previousMouseRef.current.x;
+        const deltaY = e.touches[0].clientY - previousMouseRef.current.y;
+        previousMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+        sphericalRef.current.theta += deltaX * 0.008;
+        sphericalRef.current.phi = Math.max(
+          0.08,
+          Math.min(Math.PI - 0.08, sphericalRef.current.phi - deltaY * 0.008)
+        );
+        updateCameraPos();
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) {
+        touchStartDist = null;
+      }
+      if (e.touches.length === 0) {
+        isDraggingRef.current = false;
+      }
+    };
+
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     container.addEventListener('wheel', onWheel, { passive: false });
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    container.addEventListener('touchcancel', onTouchEnd);
 
     // Safe Window Resize Handler with rAF throttling
     let resizeRafId = null;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import HomePage from './Home/HomePage';
 import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
@@ -6,8 +6,21 @@ import MontyHall from './Simulations/Monty Hall/MontyHall';
 import ProjectileMotion from './Simulations/Projectile Motion/ProjectileMotion';
 import ElectronClouding from './Simulations/Electron Clouding/ElectronClouding';
 
+const VALID_SIMULATIONS = [
+  'home',
+  'gradient-descent',
+  'monty-hall',
+  'projectile-motion',
+  'electron-clouding',
+];
+
+function getInitialSimulation() {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  return VALID_SIMULATIONS.includes(hash) ? hash : 'home';
+}
+
 function App() {
-  const [activeSimulation, setActiveSimulation] = useState('home');
+  const [activeSimulation, setActiveSimulation] = useState(getInitialSimulation);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync state with native fullscreen changes (e.g. Esc or F11 key)
@@ -34,6 +47,35 @@ function App() {
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
+
+  // Listen to browser/device back and forward button popstate events
+  useEffect(() => {
+    const initialSim = getInitialSimulation();
+    const initialUrl = initialSim === 'home' ? window.location.pathname : `#${initialSim}`;
+    window.history.replaceState({ sim: initialSim }, '', initialUrl);
+
+    const handlePopState = (event) => {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      const targetSim = event.state?.sim || (VALID_SIMULATIONS.includes(hash) ? hash : 'home');
+      setActiveSimulation(targetSim);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Navigate to simulation and push history entry so device back button works naturally
+  const navigateToSimulation = useCallback(
+    (simId, pushHistory = true) => {
+      if (!VALID_SIMULATIONS.includes(simId)) return;
+      if (pushHistory && simId !== activeSimulation) {
+        const url = simId === 'home' ? window.location.pathname : `#${simId}`;
+        window.history.pushState({ sim: simId }, '', url);
+      }
+      setActiveSimulation(simId);
+    },
+    [activeSimulation]
+  );
 
   const toggleFullscreen = () => {
     if (!isFullscreen) {
@@ -74,7 +116,7 @@ function App() {
       <header className="simhub-top-nav">
         <div
           className="simhub-brand"
-          onClick={() => setActiveSimulation('home')}
+          onClick={() => navigateToSimulation('home')}
           style={{ cursor: 'pointer' }}
           title="Return to SimHub Home"
         >
@@ -98,7 +140,7 @@ function App() {
                 className={`sim-pill-btn ${activeSimulation === sim.id ? 'active' : ''} ${
                   sim.disabled ? 'disabled-sim' : ''
                 }`}
-                onClick={() => !sim.disabled && setActiveSimulation(sim.id)}
+                onClick={() => !sim.disabled && navigateToSimulation(sim.id)}
               >
                 <span className="sim-pill-icon">{sim.icon}</span>
                 <span className="sim-pill-title">{sim.title}</span>
@@ -137,7 +179,7 @@ function App() {
       {/* Main Simulation Stage */}
       <main className={`simhub-main-stage ${activeSimulation === 'home' ? 'is-home-stage' : ''}`}>
         {activeSimulation === 'home' && (
-          <HomePage onSelectSimulation={(simId) => setActiveSimulation(simId)} />
+          <HomePage onSelectSimulation={(simId) => navigateToSimulation(simId)} />
         )}
         {activeSimulation === 'gradient-descent' && <GradientDescent />}
         {activeSimulation === 'monty-hall' && <MontyHall />}
