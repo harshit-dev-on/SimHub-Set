@@ -41,6 +41,7 @@ export default function GradientDescent() {
   const [selectedFuncKey, setSelectedFuncKey] = useState('quadratic');
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState('all'); // 'all' | 'math' | 'loss' | 'concepts' | 'quests' | 'history'
   const [selectedOptimizer, setSelectedOptimizer] = useState('sgd');
   const [learningRate, setLearningRate] = useState(0.15);
   const [currentX, setCurrentX] = useState(3.2);
@@ -569,631 +570,634 @@ export default function GradientDescent() {
   const tanY2 = currentY + (isNaN(currentGrad) ? 0 : currentGrad) * tangentSpan;
 
   return (
-    <div className="gd-simulation-container">
-      {/* Editorial Header */}
-      <header className="gd-header">
-        <div className="gd-header-badge-row">
-          <span className="gd-badge-pill" style={{ backgroundColor: currentFunc.badgeColor }}>
-            {currentFunc.badge}
-          </span>
-          <span className="gd-badge-status">{statusMessage}</span>
+    <div className="sim-split-studio-layout gd-split-layout">
+      {/* Left Column: UNSCROLLABLE WORKBENCH */}
+      <div className="unscrollable-workbench-pane">
+        <div className="workbench-top-simulation">
+          {/* Main Visualizer Landscape Plot Card */}
+          <div className="gd-visualizer-card">
+            {/* SVG Loss Curve / Green Hills Plot */}
+            <div className={`svg-plot-wrapper ${visualMode === 'pogo' ? 'pogo-theme-wrapper' : ''}`}>
+              <svg
+                ref={svgRef}
+                className={`loss-landscape-svg ${isDragging ? 'is-dragging-active' : ''}`}
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                style={{ touchAction: 'none' }}
+              >
+                <defs>
+                  <pattern id="gdGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="1" />
+                  </pattern>
+                  <linearGradient id="curveFillGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F7D25A" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#FAF2D8" stopOpacity="0.0" />
+                  </linearGradient>
+                  <linearGradient id="ballGlow" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#EE7258" />
+                    <stop offset="100%" stopColor="#D84F33" />
+                  </linearGradient>
 
-          <button
-            type="button"
-            className="student-guide-header-btn"
-            onClick={() => setIsGuideOpen(true)}
-          >
-            🎓 Concept Guide
-          </button>
+                  {/* Green Hills & Sky Gradients */}
+                  <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#BAE6FD" />
+                    <stop offset="55%" stopColor="#E0F2FE" />
+                    <stop offset="100%" stopColor="#FAF2D8" />
+                  </linearGradient>
+                  <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#66BB6A" />
+                    <stop offset="12%" stopColor="#43A047" />
+                    <stop offset="35%" stopColor="#2E7D32" />
+                    <stop offset="55%" stopColor="#6D4C41" />
+                    <stop offset="100%" stopColor="#3E2723" />
+                  </linearGradient>
+                </defs>
 
-          {/* Mode Switcher Toggle: Pogo Hills vs Math Studio */}
-          <div className="visual-mode-toggle-pill">
-            <button
-              className={`vm-toggle-btn ${visualMode === 'pogo' ? 'active' : ''}`}
-              onClick={() => setVisualMode('pogo')}
-            >
-              🌿 Pogo Hills
-            </button>
-            <button
-              className={`vm-toggle-btn ${visualMode === 'math' ? 'active' : ''}`}
-              onClick={() => setVisualMode('math')}
-            >
-              📊 Math Studio
-            </button>
-          </div>
-        </div>
-        <h1 className="gd-title">
-          {visualMode === 'pogo' ? 'Pogo Stick Gradient Descent Adventure' : 'Gradient Descent Interactive Studio'}
-        </h1>
-        <p className="gd-subtitle">
-          {visualMode === 'pogo'
-            ? 'Help the Pogo Rider bounce down the green hills to find the lowest valley (global minimum)!'
-            : 'Watch parameters iteratively slide down the loss slope ∇f(w) to minimize cost.'}
-        </p>
-
-        {/* Guided Student Quests Strip */}
-        <div className="guided-quests-strip">
-          <div className="quest-strip-label">
-            <span>🎯 Student Quests:</span>
-          </div>
-          <div className="quest-buttons-list">
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => handleLaunchQuest('quadratic', 3.2, 0.15, 'sgd')}
-              title="Smooth convex bowl: standard convergence"
-            >
-              ⛳ Standard Descent
-            </button>
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => handleLaunchQuest('doubleWell', 1.8, 0.08, 'momentum')}
-              title="Double well: use momentum to cross local hill"
-            >
-              🕳️ Escape Local Trap
-            </button>
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => handleLaunchQuest('quadratic', 3.2, 0.55, 'sgd')}
-              title="High learning rate: see parameter oscillate wildly"
-            >
-              🚀 Overshoot & Divergence
-            </button>
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => handleLaunchQuest('plateau', 3.5, 0.25, 'momentum')}
-              title="Flat plateau: speed up crawling with momentum"
-            >
-              ⚡ Momentum Plateau Run
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Simulation Layout: 2-Column Bento */}
-      <div className="gd-main-grid">
-        {/* Left Column: Visualizer Landscape & Convergence Curve */}
-        <div className="gd-visualizer-card">
-          <div className="card-header-bar">
-            <div>
-              <h3 className="card-sec-title">
-                {visualMode === 'pogo' ? 'Grassy Hills Terrain' : 'Loss Landscape f(w)'}
-              </h3>
-              <span className="card-instruction-hint">Click or drag anywhere to position the Rider</span>
-            </div>
-            <div className="optimum-indicator">
-              <span className="global-flag-legend">⛳ Green: Global Min</span>
-              {detectedMinima.some((m) => !m.isGlobal) && (
-                <span className="local-flag-legend"> • 🚩 Red: Local Min</span>
-              )}
-            </div>
-          </div>
-
-          {/* SVG Loss Curve / Green Hills Plot */}
-          <div className={`svg-plot-wrapper ${visualMode === 'pogo' ? 'pogo-theme-wrapper' : ''}`}>
-            <svg
-              ref={svgRef}
-              className={`loss-landscape-svg ${isDragging ? 'is-dragging-active' : ''}`}
-              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              style={{ touchAction: 'none' }}
-            >
-              <defs>
-                <pattern id="gdGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="1" />
-                </pattern>
-                <linearGradient id="curveFillGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F7D25A" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#FAF2D8" stopOpacity="0.0" />
-                </linearGradient>
-                <linearGradient id="ballGlow" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#EE7258" />
-                  <stop offset="100%" stopColor="#D84F33" />
-                </linearGradient>
-
-                {/* Green Hills & Sky Gradients */}
-                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#BAE6FD" />
-                  <stop offset="55%" stopColor="#E0F2FE" />
-                  <stop offset="100%" stopColor="#FAF2D8" />
-                </linearGradient>
-                <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#66BB6A" />
-                  <stop offset="12%" stopColor="#43A047" />
-                  <stop offset="35%" stopColor="#2E7D32" />
-                  <stop offset="55%" stopColor="#6D4C41" />
-                  <stop offset="100%" stopColor="#3E2723" />
-                </linearGradient>
-              </defs>
-
-              {/* Sky / Grid Background */}
-              {visualMode === 'pogo' ? (
-                <g className="pogo-sky-group">
-                  <rect width={svgWidth} height={svgHeight} fill="url(#skyGrad)" rx="16" />
-                  {/* Cartoon Sun */}
-                  <circle cx={svgWidth - 65} cy={45} r="22" fill="#FDE047" opacity="0.9" />
-                  <circle cx={svgWidth - 65} cy={45} r="30" fill="#FEF08A" opacity="0.3" className="sun-pulse" />
-                  {/* Fluffy Clouds */}
-                  <g opacity="0.75" transform="translate(60, 30) scale(0.6)">
-                    <path d="M 0 20 Q 15 0 35 15 Q 55 0 75 15 Q 95 10 95 25 Q 95 40 75 40 L 15 40 Q 0 40 0 20 Z" fill="#FFFFFF" />
+                {/* Sky / Grid Background */}
+                {visualMode === 'pogo' ? (
+                  <g className="pogo-sky-group">
+                    <rect width={svgWidth} height={svgHeight} fill="url(#skyGrad)" rx="16" />
+                    {/* Cartoon Sun */}
+                    <circle cx={svgWidth - 65} cy={45} r="22" fill="#FDE047" opacity="0.9" />
+                    <circle cx={svgWidth - 65} cy={45} r="28" fill="#FEF08A" opacity="0.4" />
+                    {/* Clouds */}
+                    <g className="pogo-clouds" opacity="0.85">
+                      <ellipse cx="120" cy="50" rx="35" ry="14" fill="#FFFFFF" />
+                      <ellipse cx="140" cy="42" rx="22" ry="16" fill="#FFFFFF" />
+                      <ellipse cx="380" cy="65" rx="42" ry="16" fill="#FFFFFF" />
+                      <ellipse cx="405" cy="55" rx="26" ry="18" fill="#FFFFFF" />
+                    </g>
                   </g>
-                  <g opacity="0.6" transform="translate(260, 45) scale(0.45)">
-                    <path d="M 0 20 Q 15 0 35 15 Q 55 0 75 15 Q 95 10 95 25 Q 95 40 75 40 L 15 40 Q 0 40 0 20 Z" fill="#FFFFFF" />
-                  </g>
-                </g>
-              ) : (
-                <rect width={svgWidth} height={svgHeight} fill="url(#gdGrid)" rx="16" />
-              )}
+                ) : (
+                  <rect width={svgWidth} height={svgHeight} fill="url(#gdGrid)" rx="16" />
+                )}
 
-              {/* Zero reference axis in Math Mode */}
-              {visualMode === 'math' && currentFunc.yMin <= 0 && currentFunc.yMax >= 0 && (
-                <line
-                  x1={padding.left}
-                  y1={scaleY(0)}
-                  x2={svgWidth - padding.right}
-                  y2={scaleY(0)}
-                  stroke="rgba(0,0,0,0.12)"
-                  strokeDasharray="4 4"
-                />
-              )}
-
-              {/* Green Hills Earth Fill / Area Under Curve */}
-              {visualMode === 'pogo' ? (
-                <g className="green-hills-ground">
-                  {/* Subterranean Earth Fill */}
-                  <path
-                    d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight + 20} L ${scaleX(currentFunc.xMin)} ${svgHeight + 20} Z`}
-                    fill="url(#grassGrad)"
-                  />
-                  {/* Top Lush Grass Ridge */}
-                  <path
-                    d={curvePathD}
-                    fill="none"
-                    stroke="#81C784"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d={curvePathD}
-                    fill="none"
-                    stroke="#2E7D32"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </g>
-              ) : (
-                <>
-                  <path
-                    d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight - padding.bottom} L ${scaleX(currentFunc.xMin)} ${svgHeight - padding.bottom} Z`}
-                    fill="url(#curveFillGrad)"
-                  />
-                  <path
-                    d={curvePathD}
-                    fill="none"
-                    stroke="#1B1C20"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                </>
-              )}
-
-              {/* Flags at ALL Local and Global Minima */}
-              {detectedMinima.map((min, idx) => {
-                const posX = scaleX(min.x);
-                const posY = scaleY(min.y);
-                const isGlobal = min.isGlobal;
-                const flagColor = isGlobal ? '#22C55E' : '#EF4444'; // Green for global, Red for local
-                const poleColor = isGlobal ? '#166534' : '#37474F';
-                const tipColor = isGlobal ? '#EAB308' : '#94A3B8';
-
-                return (
-                  <g key={`flag-${idx}-${min.x}`} transform={`translate(${posX}, ${posY})`} className="minima-flag-marker">
-                    {/* Glowing base ring for global minimum */}
-                    {isGlobal && (
-                      <ellipse cx="0" cy="0" rx="10" ry="3.5" fill="#22C55E" opacity="0.3" className="global-flag-glow" />
-                    )}
-
-                    {/* Flagpole */}
-                    <line x1="0" y1="0" x2="0" y2="-32" stroke={poleColor} strokeWidth="2.5" strokeLinecap="round" />
-                    <circle cx="0" cy="-33" r="2.5" fill={tipColor} />
-
-                    {/* Flag Fabric (Green for Global, Red for Local) */}
-                    <polygon
-                      points="0,-32 18,-25 0,-18"
-                      fill={flagColor}
-                      stroke="#FFFFFF"
-                      strokeWidth="0.8"
+                {/* Axis Reference Lines in Math Mode */}
+                {visualMode === 'math' && (
+                  <>
+                    <line
+                      x1={padding.left}
+                      y1={svgHeight - padding.bottom}
+                      x2={svgWidth - padding.right}
+                      y2={svgHeight - padding.bottom}
+                      stroke="#8C887A"
+                      strokeWidth="1.5"
                     />
-                  </g>
-                );
-              })}
+                    <line
+                      x1={padding.left}
+                      y1={padding.top}
+                      x2={padding.left}
+                      y2={svgHeight - padding.bottom}
+                      stroke="#8C887A"
+                      strokeWidth="1.5"
+                    />
+                  </>
+                )}
 
-              {/* Descent History Trajectory Line & Step Markers */}
-              {history.length > 1 && (
-                <g className="history-trajectory">
-                  {history.map((pt, i) => {
-                    if (i === 0) return null;
-                    const prev = history[i - 1];
-                    return (
+                {/* Projectile Trajectory Flight Ghost Arc */}
+                {renderPos.isJumping && renderPos.arcPath && (
+                  <path
+                    d={renderPos.arcPath}
+                    fill="none"
+                    stroke={visualMode === 'pogo' ? 'rgba(255, 255, 255, 0.85)' : '#EE7258'}
+                    strokeWidth="2.5"
+                    strokeDasharray="4 4"
+                    className="projectile-flight-arc"
+                  />
+                )}
+
+                {/* Tangent Slope Line */}
+                {!renderPos.isJumping && visualMode === 'math' && (
+                  <line
+                    x1={scaleX(tanX1)}
+                    y1={scaleY(tanY1)}
+                    x2={scaleX(tanX2)}
+                    y2={scaleY(tanY2)}
+                    stroke="#D97706"
+                    strokeWidth="2.5"
+                    strokeDasharray="5 3"
+                    strokeLinecap="round"
+                  />
+                )}
+
+                {/* History Step Dots & Connectors */}
+                {history.map((pt, idx) => {
+                  if (idx === 0) return null;
+                  const prevPt = history[idx - 1];
+                  return (
+                    <g key={`hist-${idx}`}>
                       <line
-                        key={`line-${i}`}
-                        x1={scaleX(prev.x)}
-                        y1={scaleY(prev.y)}
+                        x1={scaleX(prevPt.x)}
+                        y1={scaleY(prevPt.y)}
                         x2={scaleX(pt.x)}
                         y2={scaleY(pt.y)}
-                        stroke={visualMode === 'pogo' ? '#F7D25A' : '#EE7258'}
-                        strokeWidth={visualMode === 'pogo' ? '3' : '2.5'}
-                        strokeDasharray={visualMode === 'pogo' ? '4 3' : '3 3'}
-                        opacity="0.85"
+                        stroke="#EE7258"
+                        strokeWidth="1.8"
+                        strokeDasharray="3 3"
+                        opacity={0.6}
                       />
-                    );
-                  })}
-                  {history.map((pt, i) => (
+                      <circle
+                        cx={scaleX(pt.x)}
+                        cy={scaleY(pt.y)}
+                        r="3"
+                        fill="#EE7258"
+                        stroke="#FFFFFF"
+                        strokeWidth="1"
+                        opacity={0.85}
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* The Continuous Curve / Hills Landscape */}
+                {visualMode === 'pogo' ? (
+                  <g className="pogo-hills-terrain">
+                    <path
+                      d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight} L ${scaleX(currentFunc.xMin)} ${svgHeight} Z`}
+                      fill="url(#grassGrad)"
+                    />
+                    <path
+                      d={curvePathD}
+                      fill="none"
+                      stroke="#2E7D32"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                ) : (
+                  <>
+                    <path
+                      d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight - padding.bottom} L ${scaleX(currentFunc.xMin)} ${svgHeight - padding.bottom} Z`}
+                      fill="url(#curveFillGrad)"
+                    />
+                    <path
+                      d={curvePathD}
+                      fill="none"
+                      stroke="#1B1C20"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                    />
+                  </>
+                )}
+
+                {/* Flags at ALL Local and Global Minima */}
+                {detectedMinima.map((min, idx) => {
+                  const posX = scaleX(min.x);
+                  const posY = scaleY(min.y);
+                  const isGlobal = min.isGlobal;
+                  const flagColor = isGlobal ? '#22C55E' : '#EF4444';
+                  const poleColor = isGlobal ? '#166534' : '#37474F';
+                  const tipColor = isGlobal ? '#EAB308' : '#94A3B8';
+
+                  return (
+                    <g key={`flag-${idx}-${min.x}`} transform={`translate(${posX}, ${posY})`} className="minima-flag-marker">
+                      {isGlobal && (
+                        <ellipse cx="0" cy="0" rx="10" ry="3.5" fill="#22C55E" opacity="0.3" className="global-flag-glow" />
+                      )}
+                      <line x1="0" y1="0" x2="0" y2="-32" stroke={poleColor} strokeWidth="2.5" strokeLinecap="round" />
+                      <circle cx="0" cy="-33" r="2.5" fill={tipColor} />
+                      <polygon
+                        points="0,-32 18,-25 0,-18"
+                        fill={flagColor}
+                        stroke="#FFFFFF"
+                        strokeWidth="0.8"
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* Current Descending Point (Pogo Rider or Glowing Ball) */}
+                {visualMode === 'pogo' ? (
+                  <g
+                    className={`pogo-rider-anchor ${isDragging ? 'is-dragging' : ''}`}
+                    style={{
+                      transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
+                    }}
+                  >
+                    {renderPos.isJumping && displayHop > 3 && (
+                      <ellipse
+                        cx="0"
+                        cy={displayHop}
+                        rx={Math.max(6, 14 - displayHop * 0.2)}
+                        ry={Math.max(2, 4 - displayHop * 0.05)}
+                        fill="rgba(0,0,0,0.22)"
+                      />
+                    )}
+                    {isDragging && (
+                      <ellipse cx="0" cy="0" rx="14" ry="4" fill="rgba(0,0,0,0.25)" />
+                    )}
+
+                    <PogoRider
+                      angleDeg={displayNormalAngle}
+                      isBouncing={isDragging}
+                      isAirborne={renderPos.isJumping && displayHop > 2}
+                      jumpProgress={renderPos.progress}
+                      direction={renderPos.direction}
+                      scale={isDragging ? 1.05 : 0.9}
+                    />
+                  </g>
+                ) : (
+                  <g
+                    className={`animated-gradient-ball ${isDragging ? 'is-dragging' : ''} ${renderPos.isJumping ? 'is-in-flight' : ''}`}
+                    style={{
+                      transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
+                    }}
+                  >
+                    {renderPos.isJumping && displayHop > 3 && (
+                      <ellipse
+                        cx="0"
+                        cy={displayHop}
+                        rx={Math.max(4, 10 - displayHop * 0.15)}
+                        ry={Math.max(1.5, 3 - displayHop * 0.04)}
+                        fill="rgba(0,0,0,0.2)"
+                      />
+                    )}
                     <circle
-                      key={`pt-${i}`}
-                      cx={scaleX(pt.x)}
-                      cy={scaleY(pt.y)}
-                      r={i === history.length - 1 ? 0 : 3.5}
-                      fill={visualMode === 'pogo' ? '#F7D25A' : '#EE7258'}
-                      stroke={visualMode === 'pogo' ? '#333' : 'none'}
-                      strokeWidth={visualMode === 'pogo' ? '1' : '0'}
-                      opacity="0.9"
+                      r={isDragging ? '20' : renderPos.isJumping ? '16' : '14'}
+                      fill="#EE7258"
+                      opacity={isDragging ? '0.45' : '0.25'}
+                      className="ball-pulsar"
                     />
-                  ))}
-                </g>
-              )}
+                    <circle r="8" fill="url(#ballGlow)" stroke="#FFFFFF" strokeWidth="2.5" />
+                  </g>
+                )}
 
-              {/* Projectile Flight Trajectory Ghost Arc */}
-              {renderPos.isJumping && renderPos.arcPath && (
-                <path
-                  d={renderPos.arcPath}
-                  fill="none"
-                  stroke={visualMode === 'pogo' ? '#F59E0B' : '#EE7258'}
-                  strokeWidth="2.5"
-                  strokeDasharray="4 3"
-                  opacity="0.8"
-                  className="projectile-flight-arc"
-                />
-              )}
-
-              {/* Tangent Slope Line at Current Point */}
-              <line
-                x1={scaleX(tanX1)}
-                y1={scaleY(tanY1)}
-                x2={scaleX(tanX2)}
-                y2={scaleY(tanY2)}
-                stroke={visualMode === 'pogo' ? 'rgba(33, 150, 243, 0.6)' : '#2B7DE9'}
-                strokeWidth="2"
-                strokeDasharray="4 3"
-              />
-
-              {/* Gradient Descent Step Vector Arrow */}
-              <line
-                x1={scaleX(displayX)}
-                y1={scaleY(displayY) - displayHop}
-                x2={scaleX(theoreticalNextX)}
-                y2={scaleY(displayY) - displayHop}
-                stroke="#EE7258"
-                strokeWidth="3"
-                opacity={renderPos.isJumping ? 0.3 : 1}
-              />
-
-              {/* Pogo Stick Man OR Animated Glow Ball (Driven by Projectile Physics) */}
-              {visualMode === 'pogo' ? (
-                <g
-                  className={`pogo-rider-anchor ${isDragging ? 'is-dragging' : ''} ${renderPos.isJumping ? 'is-in-flight' : ''}`}
-                  style={{
-                    transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
-                  }}
+                {/* X and Y Axis Labels */}
+                <text
+                  x={svgWidth - padding.right}
+                  y={svgHeight - 12}
+                  textAnchor="end"
+                  className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
                 >
-                  {/* Subtle ground shadow while airborne */}
-                  {renderPos.isJumping && displayHop > 3 && (
-                    <ellipse
-                      cx="0"
-                      cy={displayHop}
-                      rx={Math.max(6, 14 - displayHop * 0.2)}
-                      ry={Math.max(2, 4 - displayHop * 0.05)}
-                      fill="rgba(0,0,0,0.22)"
-                    />
-                  )}
-
-                  {/* Ground target circle when dragging */}
-                  {isDragging && (
-                    <ellipse cx="0" cy="0" rx="14" ry="4" fill="rgba(0,0,0,0.25)" />
-                  )}
-
-                  <PogoRider
-                    angleDeg={displayNormalAngle}
-                    isBouncing={isDragging}
-                    isAirborne={renderPos.isJumping && displayHop > 2}
-                    jumpProgress={renderPos.progress}
-                    direction={renderPos.direction}
-                    scale={isDragging ? 1.05 : 0.9}
-                  />
-                </g>
-              ) : (
-                <g
-                  className={`animated-gradient-ball ${isDragging ? 'is-dragging' : ''} ${renderPos.isJumping ? 'is-in-flight' : ''}`}
-                  style={{
-                    transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
-                  }}
+                  {visualMode === 'pogo' ? 'Position (w) ➔' : 'Parameter (w)'}
+                </text>
+                <text
+                  x={padding.left - 10}
+                  y={padding.top - 10}
+                  textAnchor="start"
+                  className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
                 >
-                  {/* Ground shadow while airborne in math mode */}
-                  {renderPos.isJumping && displayHop > 3 && (
-                    <ellipse
-                      cx="0"
-                      cy={displayHop}
-                      rx={Math.max(4, 10 - displayHop * 0.15)}
-                      ry={Math.max(1.5, 3 - displayHop * 0.04)}
-                      fill="rgba(0,0,0,0.2)"
-                    />
-                  )}
-
-                  {/* Outer Drag Target Halo */}
-                  <circle
-                    r={isDragging ? '20' : renderPos.isJumping ? '16' : '14'}
-                    fill="#EE7258"
-                    opacity={isDragging ? '0.45' : '0.25'}
-                    className="ball-pulsar"
-                  />
-                  <circle r="8" fill="url(#ballGlow)" stroke="#FFFFFF" strokeWidth="2.5" />
-                </g>
-              )}
-
-              {/* X and Y Axis Labels */}
-              <text
-                x={svgWidth - padding.right}
-                y={svgHeight - 12}
-                textAnchor="end"
-                className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
-              >
-                {visualMode === 'pogo' ? 'Position (w) ➔' : 'Parameter (w)'}
-              </text>
-              <text
-                x={padding.left - 10}
-                y={padding.top - 10}
-                textAnchor="start"
-                className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
-              >
-                {visualMode === 'pogo' ? 'Altitude (Cost)' : 'Cost f(w)'}
-              </text>
-            </svg>
-          </div>
-
-          {/* Quick Metrics Bar Under Canvas */}
-          <div className="metrics-strip">
-            <div className="metric-chip">
-              <span className="metric-tag">Weight (w)</span>
-              <strong className="metric-val">{currentX.toFixed(3)}</strong>
+                  {visualMode === 'pogo' ? 'Altitude (Cost)' : 'Cost f(w)'}
+                </text>
+              </svg>
             </div>
-            <div className="metric-chip">
-              <span className="metric-tag">Cost f(w)</span>
-              <strong className="metric-val">{currentY.toFixed(3)}</strong>
-            </div>
-            <div className="metric-chip">
-              <span className="metric-tag">Slope f'(w)</span>
-              <strong className={`metric-val ${Math.abs(currentGrad) < 0.01 ? 'converged' : ''}`}>
-                {currentGrad.toFixed(3)}
-              </strong>
-            </div>
-            <div className="metric-chip">
-              <span className="metric-tag">Step #</span>
-              <strong className="metric-val">{stepCount}</strong>
+
+            {/* Quick Metrics Bar Under Canvas */}
+            <div className="metrics-strip">
+              <div className="metric-chip">
+                <span className="metric-tag">Weight (w)</span>
+                <strong className="metric-val">{currentX.toFixed(3)}</strong>
+              </div>
+              <div className="metric-chip">
+                <span className="metric-tag">Cost f(w)</span>
+                <strong className="metric-val">{currentY.toFixed(3)}</strong>
+              </div>
+              <div className="metric-chip">
+                <span className="metric-tag">Slope f'(w)</span>
+                <strong className={`metric-val ${Math.abs(currentGrad) < 0.01 ? 'converged' : ''}`}>
+                  {currentGrad.toFixed(3)}
+                </strong>
+              </div>
+              <div className="metric-chip">
+                <span className="metric-tag">Step #</span>
+                <strong className="metric-val">{stepCount}</strong>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Controls, Math Blackboard & Intuition */}
-        <div className="gd-controls-column">
-          {/* Landscape Preset Selector with Custom Function Trigger */}
-          <div className="bento-subcard surface-cream">
-            <div className="card-top-row">
-              <label className="bento-label">Select Loss Function</label>
+        {/* Bottom Area: DIFFERENT PARAMETERS TO RUN SIMULATION */}
+        <div className="workbench-bottom-controls">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="gd-badge-status" style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+              {statusMessage}
+            </span>
+            {/* Mode Switcher Toggle: Pogo Hills vs Math Studio */}
+            <div className="visual-mode-toggle-pill">
               <button
-                type="button"
-                className="add-custom-fn-trigger-btn"
-                onClick={() => setIsCustomModalOpen(true)}
+                className={`vm-toggle-btn ${visualMode === 'pogo' ? 'active' : ''}`}
+                onClick={() => setVisualMode('pogo')}
               >
-                ✨ + Custom Function
+                🌿 Pogo Hills
               </button>
-            </div>
-
-            <div className="preset-pill-grid">
-              {Object.values(allFunctions).map((fn) => (
-                <button
-                  key={fn.id}
-                  className={`preset-btn ${selectedFuncKey === fn.id ? 'active' : ''} ${
-                    fn.isCustom ? 'custom-func-pill' : ''
-                  }`}
-                  onClick={() => setSelectedFuncKey(fn.id)}
-                >
-                  <span className="preset-name">{fn.name}</span>
-                  {fn.isCustom && (
-                    <span
-                      className="delete-custom-pill-btn"
-                      title="Delete function"
-                      onClick={(e) => handleDeleteCustomFunc(e, fn.id)}
-                    >
-                      ×
-                    </span>
-                  )}
-                </button>
-              ))}
+              <button
+                className={`vm-toggle-btn ${visualMode === 'math' ? 'active' : ''}`}
+                onClick={() => setVisualMode('math')}
+              >
+                📊 Math Studio
+              </button>
             </div>
           </div>
 
-          {/* Playback & Step Controls */}
-          <div className="bento-subcard surface-dark">
-            <div className="playback-actions-row">
+          {/* Unified Controls Row */}
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+            
+            {/* Playback Controls */}
+            <div className="playback-buttons-group" style={{ display: 'flex', gap: '6px' }}>
               <button
                 className={`action-btn-primary ${isRunning ? 'btn-pause' : 'btn-play'}`}
                 onClick={() => setIsRunning(!isRunning)}
+                style={{ padding: '6px 12px', fontSize: '12px' }}
               >
-                {isRunning ? '⏸ Pause' : '▶ Start Descent'}
+                {isRunning ? '⏸ Pause' : '▶ Start'}
               </button>
-              <button
-                className="action-btn-secondary"
-                onClick={() => executeJumpStep()}
-                disabled={isRunning || renderPos.isJumping}
-              >
+              <button className="action-btn-secondary" onClick={() => executeJumpStep()} disabled={isRunning || renderPos.isJumping} style={{ padding: '6px 10px', fontSize: '12px' }}>
                 ⏭ Step
               </button>
+              <button className="action-btn-secondary" onClick={() => resetSimulation()} style={{ padding: '6px 10px', fontSize: '12px' }}>
+                ↺ Reset
+              </button>
               <button
                 className="action-btn-secondary"
-                onClick={() => resetSimulation()}
+                onClick={() => {
+                  const speeds = [500, 250, 120, 40];
+                  const currentIndex = speeds.indexOf(playbackSpeed);
+                  setPlaybackSpeed(speeds[(currentIndex + 1) % speeds.length]);
+                }}
+                style={{ width: '70px', padding: '6px 4px', fontSize: '12px' }}
               >
-                ↺ Reset
+                {playbackSpeed === 500 ? '🐢 0.5x' : playbackSpeed === 250 ? '🚶 1x' : playbackSpeed === 120 ? '🏃 2x' : playbackSpeed === 40 ? '🚀 5x' : 'Speed'}
               </button>
             </div>
 
-            {/* Speed Selector Pills */}
-            <div className="speed-pills-row">
-              <span className="param-title">Speed:</span>
-              <div className="speed-btn-group">
-                {[
-                  { label: '0.5x', ms: 500 },
-                  { label: '1x', ms: 250 },
-                  { label: '2x', ms: 120 },
-                  { label: '5x', ms: 40 },
-                ].map((spd) => (
-                  <button
-                    key={spd.label}
-                    className={`speed-pill ${playbackSpeed === spd.ms ? 'active' : ''}`}
-                    onClick={() => setPlaybackSpeed(spd.ms)}
-                  >
-                    {spd.label}
-                  </button>
+            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
+
+            {/* Landscape Select */}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select
+                value={selectedFuncKey}
+                onChange={(e) => setSelectedFuncKey(e.target.value)}
+                style={{
+                  padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.15)',
+                  fontSize: '12px', fontWeight: '600', cursor: 'pointer', outline: 'none', background: '#fff'
+                }}
+              >
+                {Object.values(allFunctions).map((fn) => (
+                  <option key={fn.id} value={fn.id}>{fn.name}</option>
                 ))}
-              </div>
+              </select>
+              <button className="add-custom-fn-trigger-btn" onClick={() => setIsCustomModalOpen(true)} style={{ padding: '6px 10px', fontSize: '12px' }}>
+                ✨ Custom
+              </button>
+              {allFunctions[selectedFuncKey]?.isCustom && (
+                <button type="button" onClick={(e) => handleDeleteCustomFunc(e, selectedFuncKey)} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}>
+                  🗑️
+                </button>
+              )}
             </div>
 
-            {/* Hyperparameter Sliders */}
-            <div className="slider-control-group">
-              {/* Learning Rate Slider */}
-              <div className="slider-row">
-                <div className="slider-labels">
-                  <span className="param-title">Learning Rate (α)</span>
-                  <span className="param-value-pill">{learningRate.toFixed(3)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.005"
-                  max="0.8"
-                  step="0.005"
-                  value={learningRate}
-                  onChange={(e) => setLearningRate(parseFloat(e.target.value))}
-                  className="editorial-slider lr-slider"
-                />
-                <div className="slider-subtext">
-                  <span>Too Small (Slow)</span>
-                  <span>Optimal</span>
-                  <span>Too High (Oscillates)</span>
-                </div>
-              </div>
+            <div style={{ width: '1.5px', height: '24px', background: 'rgba(0,0,0,0.08)' }}></div>
 
-              {/* Initial Point Slider */}
-              <div className="slider-row">
-                <div className="slider-labels">
-                  <span className="param-title">Starting Position (w₀)</span>
-                  <span className="param-value-pill">{initialX.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min={currentFunc.xMin}
-                  max={currentFunc.xMax}
-                  step="0.1"
-                  value={initialX}
-                  onChange={(e) => resetSimulation(parseFloat(e.target.value))}
-                  className="editorial-slider pos-slider"
-                />
-              </div>
-
-              {/* Optimizer Toggle */}
-              <div className="optimizer-toggle-row">
-                <span className="param-title">Optimizer:</span>
-                <div className="opt-pills">
-                  {Object.values(OPTIMIZERS).map((opt) => (
-                    <button
-                      key={opt.id}
-                      className={`opt-pill-btn ${selectedOptimizer === opt.id ? 'active' : ''}`}
-                      onClick={() => setSelectedOptimizer(opt.id)}
-                    >
-                      {opt.name.split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Learning Rate Slider */}
+            <div style={{ flex: 1, minWidth: '140px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#444', whiteSpace: 'nowrap' }}>
+                LR: {learningRate.toFixed(3)}
+              </span>
+              <input
+                type="range"
+                min="0.005"
+                max="0.8"
+                step="0.005"
+                value={learningRate}
+                onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+                className="editorial-slider lr-slider"
+                style={{ flex: 1, margin: 0 }}
+              />
             </div>
           </div>
-
-          {/* Editorial Blackboard: Live Step Math & Intuition */}
-          <div className="bento-subcard surface-yellow">
-            <div className="card-top-row">
-              <h4 className="yellow-card-title">Live Update Formula</h4>
-              <span className="doodle-accent-badge">Instant Math</span>
-            </div>
-
-            <div className="math-equation-box">
-              <div className="formula-row">
-                <span className="math-token variable">w_new</span>
-                <span className="math-token operator">=</span>
-                <span className="math-token current">w_old</span>
-                <span className="math-token operator">−</span>
-                <span className="math-token lr">α</span>
-                <span className="math-token operator">×</span>
-                <span className="math-token grad">f'(w_old)</span>
-              </div>
-
-              <div className="formula-substitution-row">
-                <span className="math-num new-val">{theoreticalNextX.toFixed(3)}</span>
-                <span className="math-token operator">=</span>
-                <span className="math-num current-val">{currentX.toFixed(3)}</span>
-                <span className="math-token operator">−</span>
-                <span className="math-num lr-val">{learningRate.toFixed(2)}</span>
-                <span className="math-token operator">×</span>
-                <span className="math-num grad-val">({currentGrad.toFixed(3)})</span>
-              </div>
-            </div>
-
-            {/* Hand-drawn editorial takeaway */}
-            <div className="editorial-handwritten-note">
-              <span className="hand-sketch-arrow">✍️</span>
-              <p className="handwritten-comment">
-                {currentGrad > 0
-                  ? `Positive slope (+${currentGrad.toFixed(2)}) pushes parameter LEFT towards valley.`
-                  : currentGrad < 0
-                  ? `Negative slope (${currentGrad.toFixed(2)}) pushes parameter RIGHT towards valley.`
-                  : `Slope is 0.00: Perfect minimum reached!`}
-              </p>
-            </div>
-          </div>
-
-          {/* Loss Convergence Real-Time Curve */}
-          <LossCurveChart
-            history={history}
-            initialLoss={safeFn(initialX)}
-            currentLoss={currentY}
-          />
         </div>
       </div>
 
-      {/* Keyboard Shortcuts Helper Footer */}
-      <footer className="gd-student-footer-bar">
-        <div className="keyboard-shortcut-hints">
-          <span className="shortcut-item"><kbd>Space</kbd> Play/Pause</span>
-          <span className="shortcut-item"><kbd>→</kbd> Step Once</span>
-          <span className="shortcut-item"><kbd>R</kbd> Reset</span>
-          <span className="shortcut-item"><kbd>M</kbd> Toggle Mode</span>
-          <span className="shortcut-item"><kbd>G</kbd> Concept Guide</span>
-          <span className="shortcut-item">🖱️ Drag rider anywhere on the hills!</span>
+      {/* Right Column: SCROLLABLE ANALYSIS & CONCEPTS */}
+      <div className="scrollable-analysis-pane">
+        {/* Top Tab Selector Pills */}
+        <div className="analysis-tabs-bar">
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('all')}
+          >
+            📋 All Notes
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'math' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('math')}
+          >
+            📐 Live Math
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'loss' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('loss')}
+          >
+            📉 Loss Curve
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'concepts' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('concepts')}
+          >
+            🎓 Concepts
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'quests' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('quests')}
+          >
+            🎯 Quests
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('history')}
+          >
+            📝 Step Log
+          </button>
         </div>
-      </footer>
+
+        {/* Scrollable Content Body */}
+        <div className="analysis-scrollable-content">
+          {/* Live Update Formula (When 'all' or 'math') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'math') && (
+            <div className="bento-subcard surface-yellow">
+              <div className="card-top-row">
+                <h4 className="yellow-card-title">Live Update Formula</h4>
+                <span className="doodle-accent-badge">Instant Calculus</span>
+              </div>
+
+              <div className="math-equation-box">
+                <div className="formula-row">
+                  <span className="math-token variable">w_new</span>
+                  <span className="math-token operator">=</span>
+                  <span className="math-token current">w_old</span>
+                  <span className="math-token operator">−</span>
+                  <span className="math-token lr">α</span>
+                  <span className="math-token operator">×</span>
+                  <span className="math-token grad">f'(w_old)</span>
+                </div>
+
+                <div className="formula-substitution-row">
+                  <span className="math-num new-val">{theoreticalNextX.toFixed(3)}</span>
+                  <span className="math-token operator">=</span>
+                  <span className="math-num current-val">{currentX.toFixed(3)}</span>
+                  <span className="math-token operator">−</span>
+                  <span className="math-num lr-val">{learningRate.toFixed(2)}</span>
+                  <span className="math-token operator">×</span>
+                  <span className="math-num grad-val">({currentGrad.toFixed(3)})</span>
+                </div>
+              </div>
+
+              <div className="editorial-handwritten-note">
+                <span className="hand-sketch-arrow">✍️</span>
+                <p className="handwritten-comment">
+                  {currentGrad > 0
+                    ? `Positive slope (+${currentGrad.toFixed(2)}) pushes parameter LEFT towards the minimum.`
+                    : currentGrad < 0
+                    ? `Negative slope (${currentGrad.toFixed(2)}) pushes parameter RIGHT towards the minimum.`
+                    : `Slope is 0.00: Perfect minimum reached!`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Loss Convergence Sparkline (When 'all' or 'loss') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'loss') && (
+            <LossCurveChart
+              history={history}
+              initialLoss={safeFn(initialX)}
+              currentLoss={currentY}
+            />
+          )}
+
+          {/* Guided Student Quests Strip (When 'all' or 'quests') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'quests') && (
+            <div className="quests-analysis-card surface-cream">
+              <div className="card-top-row">
+                <h4 className="card-sec-title">🎯 Guided Student Quests</h4>
+                <span className="modal-sub-badge">1-Click Scenarios</span>
+              </div>
+              <div className="quest-cards-vertical-list">
+                <button
+                  type="button"
+                  className="quest-action-card"
+                  onClick={() => handleLaunchQuest('quadratic', 3.2, 0.15, 'sgd')}
+                >
+                  <span className="q-icon">⛳</span>
+                  <div className="q-info">
+                    <strong>Standard Smooth Descent</strong>
+                    <p>Quadratic bowl with optimal step size (α = 0.15, SGD)</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="quest-action-card"
+                  onClick={() => handleLaunchQuest('doubleWell', 1.8, 0.08, 'momentum')}
+                >
+                  <span className="q-icon">🕳️</span>
+                  <div className="q-info">
+                    <strong>Escape Local Minima Trap</strong>
+                    <p>Double Well with Momentum (β = 0.85) to carry inertia over peaks</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="quest-action-card"
+                  onClick={() => handleLaunchQuest('quadratic', 3.2, 0.55, 'sgd')}
+                >
+                  <span className="q-icon">🚀</span>
+                  <div className="q-info">
+                    <strong>Overshoot & Divergence Chaos</strong>
+                    <p>High learning rate (α = 0.55) causing chaotic oscillations</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="quest-action-card"
+                  onClick={() => handleLaunchQuest('plateau', 3.5, 0.25, 'momentum')}
+                >
+                  <span className="q-icon">⚡</span>
+                  <div className="q-info">
+                    <strong>Momentum Plateau Acceleration</strong>
+                    <p>Speed up through flat gradients using momentum accumulation</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Student Concept Notes (When 'all' or 'concepts') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'concepts') && (
+            <div className="concepts-analysis-card surface-cream">
+              <div className="card-top-row">
+                <h4 className="card-sec-title">🎓 Core Concepts & Intuition</h4>
+                <button
+                  type="button"
+                  className="open-full-guide-btn"
+                  onClick={() => setIsGuideOpen(true)}
+                >
+                  Full Modal Guide ➔
+                </button>
+              </div>
+
+              <div className="concepts-cards-stack">
+                <div className="concept-brief-box">
+                  <strong>⛰️ The Foggy Mountain Analogy</strong>
+                  <p>
+                    You are blindfolded in thick mist on a mountain. By feeling the slope under your feet, you step downhill in the direction of steepest descent.
+                  </p>
+                </div>
+                <div className="concept-brief-box">
+                  <strong>🏃 The Learning Rate (α)</strong>
+                  <p>
+                    Step size multiplier. Too small = slow baby steps; Too high = wild overshoot; Just right = fast smooth convergence.
+                  </p>
+                </div>
+                <div className="concept-brief-box">
+                  <strong>⛳ Local vs Global Minima</strong>
+                  <p>
+                    A local minimum is a small dip in the landscape (Red Flag 🚩). The global minimum is the true bottom (Green Flag ⛳).
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step History Log Table (When 'all' or 'history') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'history') && (
+            <div className="history-log-card surface-cream">
+              <div className="card-top-row">
+                <h4 className="card-sec-title">📝 Step-by-Step History Log</h4>
+                <span className="history-count-badge">{history.length} Points</span>
+              </div>
+              <div className="history-table-wrapper">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Step</th>
+                      <th>w</th>
+                      <th>f(w)</th>
+                      <th>f'(w)</th>
+                      <th>Δw</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.slice().reverse().map((h) => (
+                      <tr key={`h-row-${h.step}-${h.x}`}>
+                        <td>#{h.step}</td>
+                        <td className="mono-cell">{h.x.toFixed(3)}</td>
+                        <td className="mono-cell">{h.y.toFixed(3)}</td>
+                        <td className="mono-cell">{h.grad.toFixed(3)}</td>
+                        <td className="mono-cell">{h.stepSize.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Custom Math Function Modal Builder */}
       <CustomFunctionModal

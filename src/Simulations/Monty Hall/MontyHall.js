@@ -13,6 +13,7 @@ import MontyGuideModal from './MontyGuideModal';
 export default function MontyHall() {
   const [numDoors, setNumDoors] = useState(3);
   const [activeTab, setActiveTab] = useState('interactive'); // 'interactive' | 'monte-carlo'
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState('all'); // 'all' | 'scoreboard' | 'tree' | 'montecarlo' | 'history'
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Interactive Game State
@@ -201,278 +202,242 @@ export default function MontyHall() {
   const stickWinRate = stats.stickPlays > 0 ? (stats.stickWins / stats.stickPlays) * 100 : 0;
 
   return (
-    <div className="monty-hall-container">
-      {/* Top Editorial Header */}
-      <header className="monty-header">
-        <div className="monty-header-badge-row">
-          <span className="monty-badge-pill">🎲 Probability & Game Theory</span>
-          <span className="monty-badge-status">
-            {activeTab === 'interactive'
-              ? game.phase === 'PICK_INITIAL'
-                ? 'Pick your initial door'
-                : game.phase === 'FINAL_DECISION'
-                ? 'Make your choice: Stick or Switch?'
-                : game.isWin
-                ? '🎉 Grand Prize Won!'
-                : '🐐 Goat Revealed!'
-              : 'Monte Carlo Lab Active'}
-          </span>
-
-          <button
-            type="button"
-            className="student-guide-header-btn"
-            onClick={() => setIsGuideOpen(true)}
-          >
-            🎓 Concept Guide
-          </button>
-
-          {/* Mode Switcher: Interactive Game Show vs Monte Carlo Simulator */}
-          <div className="visual-mode-toggle-pill">
-            <button
-              className={`vm-toggle-btn ${activeTab === 'interactive' ? 'active' : ''}`}
-              onClick={() => setActiveTab('interactive')}
-            >
-              🎪 Game Show
-            </button>
-            <button
-              className={`vm-toggle-btn ${activeTab === 'monte-carlo' ? 'active' : ''}`}
-              onClick={() => setActiveTab('monte-carlo')}
-            >
-              ⚡ Monte Carlo Lab
-            </button>
-          </div>
-        </div>
-
-        <h1 className="monty-title">The Monty Hall Problem</h1>
-        <p className="monty-subtitle">
-          Behind 1 door is a luxury Sports Car 🏎️ and behind the rest are Goats 🐐. Should you stick or switch?
-        </p>
-
-        {/* Quick Student Quests Bar */}
-        <div className="guided-quests-strip">
-          <div className="quest-strip-label">
-            <span>🎯 Student Quests:</span>
-          </div>
-          <div className="quest-buttons-list">
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => {
-                setActiveTab('interactive');
-                handleNumDoorsChange(3);
-              }}
-            >
-              🚪 Classic 3-Door Game
-            </button>
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => {
-                setActiveTab('interactive');
-                handleNumDoorsChange(8);
-              }}
-            >
-              🌟 8-Door Extreme Mode
-            </button>
-            <button
-              type="button"
-              className="quest-pill-btn"
-              onClick={() => {
-                setActiveTab('monte-carlo');
-              }}
-            >
-              📈 10,000 Trials Convergence
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Stage */}
-      {activeTab === 'interactive' ? (
-        <div className="monty-interactive-layout">
-          {/* Top Live Host Dialogue & Action Banner */}
-          <div className="host-commentary-banner">
-            <div className="host-avatar-badge">
-              <span className="host-emoji">🎙️</span>
-              <span className="host-name">Monty Hall:</span>
-            </div>
-            <div className="host-speech-text">
-              {game.phase === 'PICK_INITIAL' && (
-                <span>
-                  "Welcome, contestant! Choose any of the <strong>{numDoors} doors</strong> below to place your initial bet!"
-                </span>
-              )}
-              {game.phase === 'HOST_REVEAL' && (
-                <span>
-                  "You chose <strong>Door #{game.playerInitialPick + 1}</strong>! Opening the goat doors..."
-                </span>
-              )}
-              {game.phase === 'FINAL_DECISION' && (
-                <span>
-                  "I've opened the goat doors! Do you want to <strong>STICK with Door #{game.playerInitialPick + 1}</strong> or <strong>SWITCH to Door #{switchTargetDoor + 1}</strong>?"
-                </span>
-              )}
-              {game.phase === 'ROUND_OVER' && (
-                <span>
-                  {game.isWin ? (
-                    <span className="host-win-msg">
-                      🎉 <strong>BAM! YOU WON THE SPORTS CAR!</strong> You used the <strong>{game.strategyUsed}</strong> strategy!
-                    </span>
-                  ) : (
-                    <span className="host-lose-msg">
-                      🐐 <strong>Baaah! It's a Goat!</strong> The car was behind <strong>Door #{game.carIndex + 1}</strong>.
+    <div className="sim-split-studio-layout monty-split-layout">
+      {/* Left Column: UNSCROLLABLE WORKBENCH */}
+      <div className="unscrollable-workbench-pane">
+        <div className="workbench-top-simulation">
+          {/* Interactive Game Stage */}
+          {activeTab === 'interactive' ? (
+            <div className="monty-interactive-workbench">
+              {/* Host Dialogue Speech Banner */}
+              <div className="host-commentary-banner">
+                <div className="host-avatar-badge">
+                  <span className="host-emoji">🎙️</span>
+                  <span className="host-name">Monty Hall:</span>
+                </div>
+                <div className="host-speech-text">
+                  {game.phase === 'PICK_INITIAL' && (
+                    <span>
+                      "Welcome! Choose any of the <strong>{numDoors} doors</strong> below to place your initial bet!"
                     </span>
                   )}
-                </span>
-              )}
-            </div>
-          </div>
+                  {game.phase === 'HOST_REVEAL' && (
+                    <span>
+                      "You chose <strong>Door #{game.playerInitialPick + 1}</strong>! Opening the goat doors..."
+                    </span>
+                  )}
+                  {game.phase === 'FINAL_DECISION' && (
+                    <span>
+                      "I've opened the goat doors! Do you want to <strong>STICK with Door #{game.playerInitialPick + 1}</strong> or <strong>SWITCH to Door #{switchTargetDoor + 1}</strong>?"
+                    </span>
+                  )}
+                  {game.phase === 'ROUND_OVER' && (
+                    <span>
+                      {game.isWin ? (
+                        <span className="host-win-msg">
+                          🎉 <strong>BAM! YOU WON THE SPORTS CAR!</strong> You used the <strong>{game.strategyUsed}</strong> strategy!
+                        </span>
+                      ) : (
+                        <span className="host-lose-msg">
+                          🐐 <strong>Baaah! It's a Goat!</strong> The car was behind <strong>Door #{game.carIndex + 1}</strong>.
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-          {/* 3D Doors Show Stage */}
-          <div className="doors-stage-card">
-            <div className="doors-stage-header">
-              <div className="stage-door-count-control">
-                <span className="stage-label">Doors (N):</span>
-                <div className="doors-quick-presets">
-                  {[3, 4, 5, 8, 10, 20, 50, 100].map((count) => (
-                    <button
-                      key={count}
-                      className={`door-count-btn ${numDoors === count ? 'active' : ''}`}
-                      onClick={() => handleNumDoorsChange(count)}
-                    >
-                      {count}
-                    </button>
+              {/* 3D Doors Stage Card */}
+              <div className="doors-stage-card">
+                {/* Doors Flex Grid */}
+                <div className={`doors-grid-container doors-count-${numDoors} ${numDoors >= 14 ? 'is-dense-grid' : ''}`}>
+                  {game.doors.map((door) => (
+                    <DoorCard
+                      key={door.id}
+                      door={door}
+                      onClick={() => handleSelectInitialDoor(door.id)}
+                      isSelectable={game.phase === 'PICK_INITIAL'}
+                      isSwitchTarget={door.id === switchTargetDoor}
+                      showResult={game.phase === 'ROUND_OVER'}
+                      phase={game.phase}
+                      totalDoors={numDoors}
+                    />
                   ))}
                 </div>
 
-                <div className="custom-door-input-group">
-                  <button
-                    className="stepper-btn"
-                    onClick={() => handleNumDoorsChange(numDoors - 1)}
-                    disabled={numDoors <= 3}
-                    title="Decrease Doors"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min="3"
-                    max="100"
-                    value={numDoors}
-                    onChange={(e) => handleNumDoorsChange(e.target.value)}
-                    className="custom-door-number-input"
-                    title="Enter any number of doors (3 - 100)"
-                  />
-                  <button
-                    className="stepper-btn"
-                    onClick={() => handleNumDoorsChange(numDoors + 1)}
-                    disabled={numDoors >= 100}
-                    title="Increase Doors"
-                  >
-                    +
-                  </button>
-                </div>
+                {/* Phase 3 Final Decision Action Bar */}
+                {game.phase === 'FINAL_DECISION' && (
+                  <div className="final-decision-action-bar">
+                    <button
+                      type="button"
+                      className="decision-btn stick-btn"
+                      onClick={() => handleFinalDecision('STICK')}
+                    >
+                      <span className="btn-icon">🔒</span>
+                      <div className="btn-text-group">
+                        <strong className="btn-main-label">STICK WITH DOOR #{game.playerInitialPick + 1}</strong>
+                        <span className="btn-sub-label">Keep initial bet (1/{numDoors} probability)</span>
+                      </div>
+                    </button>
 
-                <div className="door-prob-preview-pill">
-                  <span>Switch: <strong>{(((numDoors - 1) / numDoors) * 100).toFixed(1)}%</strong></span>
-                  <span>Stick: <strong>{((1 / numDoors) * 100).toFixed(1)}%</strong></span>
-                </div>
-              </div>
+                    <button
+                      type="button"
+                      className="decision-btn switch-btn"
+                      onClick={() => handleFinalDecision('SWITCH')}
+                    >
+                      <span className="btn-icon">🔀</span>
+                      <div className="btn-text-group">
+                        <strong className="btn-main-label">SWITCH TO DOOR #{switchTargetDoor + 1}</strong>
+                        <span className="btn-sub-label">Switch to filtered door ({numDoors - 1}/{numDoors} probability!)</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
 
-              <div className="doors-hint-tag">
-                {game.phase === 'PICK_INITIAL' && '👉 Click any door to pick'}
-                {game.phase === 'FINAL_DECISION' && '🤔 Choose your strategy below'}
-                {game.phase === 'ROUND_OVER' && '✨ Click Next Round to play again'}
+                {/* Phase 4 Round Over Next Button */}
+                {game.phase === 'ROUND_OVER' && (
+                  <div className="round-over-action-bar">
+                    <button
+                      type="button"
+                      className="next-round-btn"
+                      onClick={() => startNewRound()}
+                    >
+                      ▶ Next Round (Space)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
+          ) : (
+            /* Monte Carlo Standalone in Left Window */
+            <div className="monte-carlo-workbench-wrapper">
+              <MonteCarloSimulator numDoors={numDoors} />
+            </div>
+          )}
+        </div>
 
-            {/* Active Contenders Spotlight for High N Doors in Phase 3 & 4 */}
-            {numDoors >= 6 && (game.phase === 'FINAL_DECISION' || game.phase === 'ROUND_OVER') && (
-              <div className="contenders-spotlight-card">
-                <div className="spotlight-title-row">
-                  <span className="spotlight-badge">⚡ The Final Matchup</span>
-                  <span className="spotlight-note">
-                    Monty opened {game.hostOpenedDoors.length} goat doors! Only 2 doors remain closed:
-                  </span>
-                </div>
-                <div className="spotlight-matchup-row">
-                  <div className="contender-box contender-stick">
-                    <span className="contender-tag">🔒 Your Initial Pick</span>
-                    <strong className="contender-num">Door #{game.playerInitialPick + 1}</strong>
-                    <span className="contender-prob">Initial Blind Guess: <strong>{((1 / numDoors) * 100).toFixed(1)}%</strong></span>
-                  </div>
-                  <span className="matchup-vs-badge">VS</span>
-                  <div className="contender-box contender-switch">
-                    <span className="contender-tag">🔀 Switch Target</span>
-                    <strong className="contender-num">Door #{switchTargetDoor + 1}</strong>
-                    <span className="contender-prob">Filtered by Monty: <strong>{(((numDoors - 1) / numDoors) * 100).toFixed(1)}%</strong></span>
-                  </div>
-                </div>
-              </div>
-            )}
+        {/* Bottom Area: PARAMETERS TO RUN SIMULATION */}
+        <div className="workbench-bottom-controls">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="monty-badge-status" style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-secondary)' }}>
+              {activeTab === 'interactive' ? (
+                <>
+                  {game.phase === 'PICK_INITIAL' && 'Step 1: Pick a Door'}
+                  {game.phase === 'HOST_REVEAL' && 'Step 2: Monty Opens Goat Doors'}
+                  {game.phase === 'FINAL_DECISION' && 'Step 3: Stick or Switch?'}
+                  {game.phase === 'ROUND_OVER' && (game.isWin ? '🎉 Winner!' : '🐐 Goat!')}
+                </>
+              ) : (
+                'Automated Simulation Lab'
+              )}
+            </span>
+            {/* Mode Switcher: Interactive Game Show vs Monte Carlo Simulator */}
+            <div className="visual-mode-toggle-pill">
+              <button
+                className={`vm-toggle-btn ${activeTab === 'interactive' ? 'active' : ''}`}
+                onClick={() => setActiveTab('interactive')}
+              >
+                🎪 Game Show
+              </button>
+              <button
+                className={`vm-toggle-btn ${activeTab === 'monte-carlo' ? 'active' : ''}`}
+                onClick={() => setActiveTab('monte-carlo')}
+              >
+                ⚡ Monte Carlo Lab
+              </button>
+            </div>
+          </div>
 
-            {/* Doors Flex Grid */}
-            <div className={`doors-grid-container doors-count-${numDoors} ${numDoors >= 14 ? 'is-dense-grid' : ''}`}>
-              {game.doors.map((door) => (
-                <DoorCard
-                  key={door.id}
-                  door={door}
-                  onClick={() => handleSelectInitialDoor(door.id)}
-                  isSelectable={game.phase === 'PICK_INITIAL'}
-                  isSwitchTarget={door.id === switchTargetDoor}
-                  showResult={game.phase === 'ROUND_OVER'}
-                  phase={game.phase}
-                  totalDoors={numDoors}
-                />
+          <div className="stage-door-count-control">
+            <span className="stage-label">Doors (N):</span>
+            <div className="doors-quick-presets">
+              {[3, 4, 5, 8, 10, 20, 50, 100].map((count) => (
+                <button
+                  key={count}
+                  className={`door-count-btn ${numDoors === count ? 'active' : ''}`}
+                  onClick={() => handleNumDoorsChange(count)}
+                >
+                  {count}
+                </button>
               ))}
             </div>
 
-            {/* Phase 3 Final Decision Action Bar */}
-            {game.phase === 'FINAL_DECISION' && (
-              <div className="final-decision-action-bar">
-                <button
-                  type="button"
-                  className="decision-btn stick-btn"
-                  onClick={() => handleFinalDecision('STICK')}
-                >
-                  <span className="btn-icon">🔒</span>
-                  <div className="btn-text-group">
-                    <strong className="btn-main-label">STICK WITH DOOR #{game.playerInitialPick + 1}</strong>
-                    <span className="btn-sub-label">Keep initial bet (1/{numDoors} probability)</span>
-                  </div>
-                </button>
+            <div className="custom-door-input-group">
+              <button
+                className="stepper-btn"
+                onClick={() => handleNumDoorsChange(numDoors - 1)}
+                disabled={numDoors <= 3}
+                title="Decrease Doors"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min="3"
+                max="100"
+                value={numDoors}
+                onChange={(e) => handleNumDoorsChange(e.target.value)}
+                className="custom-door-number-input"
+                title="Enter any number of doors (3 - 100)"
+              />
+              <button
+                className="stepper-btn"
+                onClick={() => handleNumDoorsChange(numDoors + 1)}
+                disabled={numDoors >= 100}
+                title="Increase Doors"
+              >
+                +
+              </button>
+            </div>
 
-                <button
-                  type="button"
-                  className="decision-btn switch-btn"
-                  onClick={() => handleFinalDecision('SWITCH')}
-                >
-                  <span className="btn-icon">🔀</span>
-                  <div className="btn-text-group">
-                    <strong className="btn-main-label">SWITCH TO DOOR #{switchTargetDoor + 1}</strong>
-                    <span className="btn-sub-label">Switch to remaining door ({numDoors - 1}/{numDoors} probability!)</span>
-                  </div>
-                </button>
-              </div>
-            )}
-
-            {/* Phase 4 Round Over Next Button */}
-            {game.phase === 'ROUND_OVER' && (
-              <div className="round-over-action-bar">
-                <button
-                  type="button"
-                  className="next-round-btn"
-                  onClick={() => startNewRound()}
-                >
-                  ▶ Next Round (Space)
-                </button>
-              </div>
-            )}
+            <div className="door-prob-preview-pill">
+              <span>Switch: <strong>{(((numDoors - 1) / numDoors) * 100).toFixed(1)}%</strong></span>
+              <span>Stick: <strong>{((1 / numDoors) * 100).toFixed(1)}%</strong></span>
+            </div>
           </div>
+        </div>
+      </div>
 
-          {/* Lower 2-Column Grid: Live Scoreboard & Probability Blackboard */}
-          <div className="monty-lower-grid">
-            {/* Live Scoreboard Card */}
+      {/* Right Column: SCROLLABLE ANALYSIS & CONCEPTS */}
+      <div className="scrollable-analysis-pane">
+        {/* Top Tab Selector Pills */}
+        <div className="analysis-tabs-bar">
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('all')}
+          >
+            📋 All Notes
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'scoreboard' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('scoreboard')}
+          >
+            📊 Scoreboard
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'tree' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('tree')}
+          >
+            🌳 Decision Tree
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'montecarlo' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('montecarlo')}
+          >
+            ⚡ Monte Carlo
+          </button>
+          <button
+            className={`analysis-tab-pill ${activeAnalysisTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveAnalysisTab('history')}
+          >
+            🎓 Marilyn's Proof
+          </button>
+        </div>
+
+        {/* Scrollable Content Body */}
+        <div className="analysis-scrollable-content">
+          {/* Live Scoreboard Card (When 'all' or 'scoreboard') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'scoreboard') && (
             <div className="scoreboard-card surface-cream">
               <div className="scoreboard-header">
                 <h4 className="scoreboard-title">📊 Your Live Scoreboard</h4>
@@ -513,27 +478,54 @@ export default function MontyHall() {
                 Total Games Played: <strong>{stats.totalGames}</strong>
               </div>
             </div>
+          )}
 
-            {/* Probability Blackboard & Decision Tree */}
+          {/* Probability Blackboard & Decision Tree (When 'all' or 'tree') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'tree') && (
             <ProbabilityBlackboard activeCase={activeCase} />
-          </div>
-        </div>
-      ) : (
-        /* Monte Carlo Lab Mode */
-        <MonteCarloSimulator numDoors={numDoors} />
-      )}
+          )}
 
-      {/* Keyboard Shortcuts Helper Footer */}
-      <footer className="gd-student-footer-bar">
-        <div className="keyboard-shortcut-hints">
-          <span className="shortcut-item"><kbd>1</kbd>-<kbd>{numDoors}</kbd> Pick Door</span>
-          <span className="shortcut-item"><kbd>S</kbd> Switch</span>
-          <span className="shortcut-item"><kbd>K</kbd> Stick</span>
-          <span className="shortcut-item"><kbd>Space</kbd> Next Round</span>
-          <span className="shortcut-item"><kbd>R</kbd> Reset</span>
-          <span className="shortcut-item"><kbd>G</kbd> Concept Guide</span>
+          {/* Monte Carlo Lab (When 'all' or 'montecarlo') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'montecarlo') && (
+            <div className="monte-carlo-analysis-card">
+              <MonteCarloSimulator numDoors={numDoors} />
+            </div>
+          )}
+
+          {/* Marilyn vos Savant & Historical Controversy (When 'all' or 'history') */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'history') && (
+            <div className="concepts-analysis-card surface-cream">
+              <div className="card-top-row">
+                <h4 className="card-sec-title">🎓 The 1990 Marilyn vos Savant Controversy</h4>
+                <button
+                  type="button"
+                  className="open-full-guide-btn"
+                  onClick={() => setIsGuideOpen(true)}
+                >
+                  Full Modal Guide ➔
+                </button>
+              </div>
+
+              <div className="concepts-cards-stack">
+                <div className="concept-brief-box">
+                  <strong>💡 The 100-Door Intuition</strong>
+                  <p>
+                    Imagine 100 doors. You pick Door #1 (1/100 chance). Monty opens 98 goat doors, leaving only Door #77.
+                    Did your blind guess magically pick the car (1%), or did Monty's filter funnel the remaining 99% of probability into Door #77?
+                  </p>
+                </div>
+
+                <div className="concept-brief-box">
+                  <strong>📜 The Host's Asymmetric Knowledge</strong>
+                  <p>
+                    Monty is forbidden from opening the car door or your door. This asymmetric filter preserves your initial 1/N odds while concentrating all the remaining (N-1)/N probability into the single switch target!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </footer>
+      </div>
 
       {/* Student Guide Modal */}
       <MontyGuideModal
