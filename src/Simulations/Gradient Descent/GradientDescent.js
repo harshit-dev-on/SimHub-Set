@@ -45,12 +45,10 @@ export default function GradientDescent() {
   const [isRunning, setIsRunning] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(250); // ms per step
   const [history, setHistory] = useState([]);
-  const [optimizerState, setOptimizerState] = useState({});
   const [statusMessage, setStatusMessage] = useState('Ready to descend');
 
   const currentFunc = allFunctions[selectedFuncKey] || allFunctions.quadratic;
   const currentOpt = OPTIMIZERS[selectedOptimizer];
-  const timerRef = useRef(null);
 
   const handleApplyCustomFunction = (customFuncObj) => {
     setAllFunctions((prev) => {
@@ -107,105 +105,16 @@ export default function GradientDescent() {
   };
 
   // Initialize or reset state on function change
-  const resetSimulation = useCallback((newX0 = null) => {
-    setIsRunning(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    
-    const startX = newX0 !== null ? newX0 : currentFunc.defaultX0;
-    setInitialX(startX);
-    setCurrentX(startX);
-    const startY = currentFunc.fn(startX);
-    const startGrad = currentFunc.derivative(startX);
-
-    setHistory([{
-      step: 0,
-      x: startX,
-      y: startY,
-      grad: startGrad,
-      stepSize: 0,
-    }]);
-    setOptimizerState({});
-    setStatusMessage('Ready to descend');
-  }, [currentFunc]);
-
-  useEffect(() => {
-    setLearningRate(currentFunc.defaultLr);
-    resetSimulation(currentFunc.defaultX0);
-  }, [selectedFuncKey, resetSimulation, currentFunc.defaultLr, currentFunc.defaultX0]);
-
-  // Execute a single gradient descent step
-  const stepDescent = useCallback(() => {
-    setCurrentX((prevX) => {
-      const grad = currentFunc.derivative(prevX);
-
-      // Check convergence criteria
-      if (Math.abs(grad) < 0.0005) {
-        setIsRunning(false);
-        setStatusMessage('Converged at local/global minimum! 🎉');
-        return prevX;
-      }
-
-      // Check divergence
-      if (Math.abs(prevX) > 10 || isNaN(prevX)) {
-        setIsRunning(false);
-        setStatusMessage('Diverged! Learning rate is too high ⚠️');
-        return prevX;
-      }
-
-      const { newX, state: newOptState } = currentOpt.update(
-        prevX,
-        grad,
-        learningRate,
-        optimizerState
-      );
-
-      setOptimizerState(newOptState);
-
-      const nextY = currentFunc.fn(newX);
-      const nextGrad = currentFunc.derivative(newX);
-
-      setHistory((prevHistory) => {
-        const nextStep = prevHistory.length;
-        const newHist = [
-          ...prevHistory,
-          {
-            step: nextStep,
-            x: newX,
-            y: nextY,
-            grad: nextGrad,
-            stepSize: newX - prevX,
-          },
-        ];
-        return newHist.slice(-40); // keep last 40 for clean rendering
-      });
-
-      if (Math.abs(newX - prevX) < 0.001) {
-        setStatusMessage('Plateau: Step size is near zero');
-      } else {
-        setStatusMessage(`Step ${history.length}: Moving ${grad > 0 ? 'Left ←' : 'Right →'}`);
-      }
-
-      return newX;
-    });
-  }, [currentFunc, currentOpt, learningRate, optimizerState, history.length]);
-
-  // Handle play/pause timer
-  useEffect(() => {
-    if (isRunning) {
-      timerRef.current = setInterval(() => {
-        stepDescent();
-      }, playbackSpeed);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isRunning, playbackSpeed, stepDescent]);
-
-  // Dragging State and Refs
-  const [isDragging, setIsDragging] = useState(false);
+  // Animation & Position Tracking Refs
+  const currentXRef = useRef(3.2);
+  const isJumpingRef = useRef(false);
+  const animFrameRef = useRef(null);
+  const nextStepTimeoutRef = useRef(null);
+  const isRunningRef = useRef(isRunning);
+  isRunningRef.current = isRunning;
   const svgRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const optimizerStateRef = useRef({});
 
   // Current mathematical metrics safely evaluated with useMemo
   const safeFn = useMemo(() => currentFunc.fn || ((x) => x * x), [currentFunc]);
@@ -215,11 +124,6 @@ export default function GradientDescent() {
   const detectedMinima = useMemo(() => {
     return findFunctionMinima(safeFn, safeDeriv, currentFunc.xMin, currentFunc.xMax);
   }, [safeFn, safeDeriv, currentFunc.xMin, currentFunc.xMax]);
-
-  const currentY = safeFn(currentX);
-  const currentGrad = safeDeriv(currentX);
-  const nextStepDelta = -learningRate * currentGrad;
-  const theoreticalNextX = currentX + nextStepDelta;
 
   // SVG Coordinates Transformation
   const svgWidth = 640;
@@ -232,15 +136,284 @@ export default function GradientDescent() {
   const xSpan = (currentFunc.xMax - currentFunc.xMin) || 1;
   const ySpan = (currentFunc.yMax - currentFunc.yMin) || 1;
 
-  const scaleX = (x) => {
+  const scaleX = useCallback((x) => {
     const clampedX = isNaN(x) ? currentFunc.xMin : x;
     return padding.left + ((clampedX - currentFunc.xMin) / xSpan) * plotWidth;
-  };
+  }, [currentFunc.xMin, padding.left, plotWidth, xSpan]);
 
-  const scaleY = (y) => {
+  const scaleY = useCallback((y) => {
     const clampedY = isNaN(y) ? currentFunc.yMin : y;
     return padding.top + plotHeight - ((clampedY - currentFunc.yMin) / ySpan) * plotHeight;
-  };
+  }, [currentFunc.yMin, padding.top, plotHeight, ySpan]);
+
+  // Exact normal (perpendicular) angle to curve in SVG screen coordinates
+  const computeScreenNormalAngle = useCallback((xVal) => {
+    const grad = safeDeriv(xVal);
+    if (isNaN(grad)) return 0;
+    const dX_screen = plotWidth / xSpan;
+    const dY_screen = -(plotHeight / ySpan) * grad;
+    return (Math.atan2(dY_screen, dX_screen) * 180) / Math.PI;
+  }, [plotHeight, plotWidth, safeDeriv, xSpan, ySpan]);
+
+  // Dynamic Parameter Refs to keep jump loop completely stable
+  const currentOptRef = useRef(currentOpt);
+  currentOptRef.current = currentOpt;
+  const learningRateRef = useRef(learningRate);
+  learningRateRef.current = learningRate;
+  const playbackSpeedRef = useRef(playbackSpeed);
+  playbackSpeedRef.current = playbackSpeed;
+  const safeFnRef = useRef(safeFn);
+  safeFnRef.current = safeFn;
+  const safeDerivRef = useRef(safeDeriv);
+  safeDerivRef.current = safeDeriv;
+  const scaleXRef = useRef(scaleX);
+  scaleXRef.current = scaleX;
+  const scaleYRef = useRef(scaleY);
+  scaleYRef.current = scaleY;
+  const computeNormalRef = useRef(computeScreenNormalAngle);
+  computeNormalRef.current = computeScreenNormalAngle;
+
+  // Smooth Render State during projectile hops
+  const [renderPos, setRenderPos] = useState({
+    x: 3.2,
+    y: 0,
+    hopPx: 0,
+    progress: 0,
+    isJumping: false,
+    direction: 1,
+    normalAngle: 0,
+    arcPath: null,
+  });
+
+  // Initialize or reset state on function change
+  const resetSimulation = useCallback((newX0 = null) => {
+    setIsRunning(false);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (nextStepTimeoutRef.current) clearTimeout(nextStepTimeoutRef.current);
+    isJumpingRef.current = false;
+    optimizerStateRef.current = {};
+
+    const startX = newX0 !== null ? newX0 : currentFunc.defaultX0;
+    currentXRef.current = startX;
+    setInitialX(startX);
+    setCurrentX(startX);
+    const startY = safeFn(startX);
+    const startGrad = safeDeriv(startX);
+    const initialNormal = computeScreenNormalAngle(startX);
+
+    setRenderPos({
+      x: startX,
+      y: startY,
+      hopPx: 0,
+      progress: 0,
+      isJumping: false,
+      direction: 1,
+      normalAngle: initialNormal,
+      arcPath: null,
+    });
+
+    setHistory([{
+      step: 0,
+      x: startX,
+      y: startY,
+      grad: startGrad,
+      stepSize: 0,
+    }]);
+    setStatusMessage('Ready to descend');
+  }, [currentFunc, safeFn, safeDeriv, computeScreenNormalAngle]);
+
+  useEffect(() => {
+    setLearningRate(currentFunc.defaultLr);
+    resetSimulation(currentFunc.defaultX0);
+  }, [selectedFuncKey, resetSimulation, currentFunc.defaultLr, currentFunc.defaultX0]);
+
+  // Execute a single animated projectile jump gradient descent step (Stable Ref-Based)
+  const executeJumpStep = useCallback((onComplete = null) => {
+    if (isJumpingRef.current) return;
+
+    const prevX = currentXRef.current;
+    const fn = safeFnRef.current;
+    const deriv = safeDerivRef.current;
+    const opt = currentOptRef.current;
+    const lr = learningRateRef.current;
+    const spd = playbackSpeedRef.current;
+    const sX = scaleXRef.current;
+    const sY = scaleYRef.current;
+    const compNormal = computeNormalRef.current;
+
+    const grad = deriv(prevX);
+
+    // Check convergence criteria
+    if (Math.abs(grad) < 0.0005) {
+      setIsRunning(false);
+      setStatusMessage('Converged at local/global minimum! 🎉');
+      if (onComplete) onComplete(false);
+      return;
+    }
+
+    // Check divergence
+    if (Math.abs(prevX) > 10 || isNaN(prevX)) {
+      setIsRunning(false);
+      setStatusMessage('Diverged! Learning rate is too high ⚠️');
+      if (onComplete) onComplete(false);
+      return;
+    }
+
+    const { newX, state: newOptState } = opt.update(
+      prevX,
+      grad,
+      lr,
+      optimizerStateRef.current
+    );
+
+    optimizerStateRef.current = newOptState;
+
+    // If step size is micro small, finish immediately
+    const deltaX = newX - prevX;
+    if (Math.abs(deltaX) < 0.0001) {
+      setIsRunning(false);
+      setStatusMessage('Converged: Step size near zero');
+      if (onComplete) onComplete(false);
+      return;
+    }
+
+    // Calculate jump duration proportional to playbackSpeed
+    const jumpDuration = Math.max(100, Math.min(spd * 0.82, 400));
+    const hopMaxHeight = Math.min(48, 14 + 18 * Math.min(Math.abs(deltaX), 2.5));
+    const jumpDirection = deltaX >= 0 ? 1 : -1;
+
+    // Precalculate trajectory arc points for ghost trajectory rendering
+    const arcPts = [];
+    const arcRes = 25;
+    for (let k = 0; k <= arcRes; k++) {
+      const p = k / arcRes;
+      const xInterp = prevX + p * deltaX;
+      const yInterp = fn(xInterp);
+      const hop = Math.sin(p * Math.PI) * hopMaxHeight;
+      arcPts.push(`${sX(xInterp).toFixed(1)},${(sY(yInterp) - hop).toFixed(1)}`);
+    }
+    const arcPath = `M ${arcPts.join(' L ')}`;
+
+    isJumpingRef.current = true;
+    const startTime = performance.now();
+
+    const animateHop = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / jumpDuration);
+
+      // Smooth horizontal progress
+      const currentXInterp = prevX + progress * deltaX;
+      const currentYInterp = fn(currentXInterp);
+      const hop = Math.sin(progress * Math.PI) * hopMaxHeight;
+      const currentNormal = compNormal(currentXInterp);
+
+      setRenderPos({
+        x: currentXInterp,
+        y: currentYInterp,
+        hopPx: hop,
+        progress,
+        isJumping: true,
+        direction: jumpDirection,
+        normalAngle: currentNormal,
+        arcPath,
+      });
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(animateHop);
+      } else {
+        // Landing completed!
+        isJumpingRef.current = false;
+        currentXRef.current = newX;
+        setCurrentX(newX);
+
+        const nextY = fn(newX);
+        const nextGrad = deriv(newX);
+        const landedNormal = compNormal(newX);
+
+        setRenderPos({
+          x: newX,
+          y: nextY,
+          hopPx: 0,
+          progress: 1,
+          isJumping: false,
+          direction: jumpDirection,
+          normalAngle: landedNormal,
+          arcPath: null,
+        });
+
+        setHistory((prevHistory) => {
+          const nextStep = prevHistory.length;
+          const newHist = [
+            ...prevHistory,
+            {
+              step: nextStep,
+              x: newX,
+              y: nextY,
+              grad: nextGrad,
+              stepSize: newX - prevX,
+            },
+          ];
+          return newHist.slice(-40);
+        });
+
+        if (Math.abs(nextGrad) < 0.0005) {
+          setIsRunning(false);
+          setStatusMessage('Converged at local/global minimum! 🎉');
+          if (onComplete) onComplete(false);
+        } else if (Math.abs(deltaX) < 0.001) {
+          setStatusMessage('Plateau: Step size is near zero');
+          if (onComplete) onComplete(true);
+        } else {
+          setStatusMessage(`Jumped to w = ${newX.toFixed(2)} (Moving ${deltaX > 0 ? 'Right →' : 'Left ←'})`);
+          if (onComplete) onComplete(true);
+        }
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(animateHop);
+  }, []);
+
+  // Handle continuous auto-jump loop when isRunning is active
+  useEffect(() => {
+    if (!isRunning) {
+      if (nextStepTimeoutRef.current) clearTimeout(nextStepTimeoutRef.current);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const runLoop = () => {
+      if (isCancelled || !isRunningRef.current) return;
+      executeJumpStep((shouldContinue) => {
+        if (!shouldContinue || isCancelled || !isRunningRef.current) return;
+        const spd = playbackSpeedRef.current;
+        const restDuration = Math.max(30, spd - Math.min(spd * 0.82, 400));
+        nextStepTimeoutRef.current = setTimeout(() => {
+          if (!isCancelled && isRunningRef.current) {
+            runLoop();
+          }
+        }, restDuration);
+      });
+    };
+
+    runLoop();
+
+    return () => {
+      isCancelled = true;
+      if (nextStepTimeoutRef.current) clearTimeout(nextStepTimeoutRef.current);
+    };
+  }, [isRunning, executeJumpStep]);
+
+  // Display coordinates (interpolated during projectile flight, or current state when static)
+  const displayX = renderPos.isJumping ? renderPos.x : currentX;
+  const displayY = renderPos.isJumping ? renderPos.y : safeFn(currentX);
+  const displayHop = renderPos.isJumping ? renderPos.hopPx : 0;
+  const displayNormalAngle = renderPos.isJumping ? renderPos.normalAngle : computeScreenNormalAngle(currentX);
+
+  const currentY = safeFn(currentX);
+  const currentGrad = safeDeriv(currentX);
+  const nextStepDelta = -learningRate * currentGrad;
+  const theoreticalNextX = currentX + nextStepDelta;
 
   // Convert screen mouse/touch pointer to exact domain X
   const getDomainXFromPointer = useCallback((clientX) => {
@@ -256,11 +429,30 @@ export default function GradientDescent() {
 
   // Smooth position update during drag
   const updatePositionWhileDragging = useCallback((domainX) => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (nextStepTimeoutRef.current) clearTimeout(nextStepTimeoutRef.current);
+    isJumpingRef.current = false;
+    optimizerStateRef.current = {};
+
     const roundedX = Number(domainX.toFixed(3));
+    currentXRef.current = roundedX;
     setCurrentX(roundedX);
     setInitialX(roundedX);
     const yVal = safeFn(roundedX);
     const gradVal = safeDeriv(roundedX);
+    const normalAngle = computeScreenNormalAngle(roundedX);
+
+    setRenderPos({
+      x: roundedX,
+      y: yVal,
+      hopPx: 0,
+      progress: 0,
+      isJumping: false,
+      direction: 1,
+      normalAngle,
+      arcPath: null,
+    });
+
     setHistory([{
       step: 0,
       x: roundedX,
@@ -268,15 +460,16 @@ export default function GradientDescent() {
       grad: gradVal,
       stepSize: 0,
     }]);
-    setOptimizerState({});
     setStatusMessage(`Placed at w = ${roundedX.toFixed(2)} (Slope: ${gradVal.toFixed(2)})`);
-  }, [safeFn, safeDeriv]);
+  }, [safeFn, safeDeriv, computeScreenNormalAngle]);
 
   // Pointer Event Handlers for continuous butter-smooth dragging
   const handlePointerDown = (e) => {
-    // Only drag on left-click or touch
     if (e.button !== undefined && e.button !== 0) return;
     if (isRunning) setIsRunning(false);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    isJumpingRef.current = false;
+
     setIsDragging(true);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -589,6 +782,19 @@ export default function GradientDescent() {
                 </g>
               )}
 
+              {/* Projectile Flight Trajectory Ghost Arc */}
+              {renderPos.isJumping && renderPos.arcPath && (
+                <path
+                  d={renderPos.arcPath}
+                  fill="none"
+                  stroke={visualMode === 'pogo' ? '#F59E0B' : '#EE7258'}
+                  strokeWidth="2.5"
+                  strokeDasharray="4 3"
+                  opacity="0.8"
+                  className="projectile-flight-arc"
+                />
+              )}
+
               {/* Tangent Slope Line at Current Point */}
               <line
                 x1={scaleX(tanX1)}
@@ -602,57 +808,83 @@ export default function GradientDescent() {
 
               {/* Gradient Descent Step Vector Arrow */}
               <line
-                x1={scaleX(currentX)}
-                y1={scaleY(currentY)}
+                x1={scaleX(displayX)}
+                y1={scaleY(displayY) - displayHop}
                 x2={scaleX(theoreticalNextX)}
-                y2={scaleY(currentY)}
+                y2={scaleY(displayY) - displayHop}
                 stroke="#EE7258"
                 strokeWidth="3"
+                opacity={renderPos.isJumping ? 0.3 : 1}
               />
 
-              {/* Pogo Stick Man OR Animated Glow Ball */}
+              {/* Pogo Stick Man OR Animated Glow Ball (Driven by Projectile Physics) */}
               {visualMode === 'pogo' ? (
                 <g
-                  className={`pogo-rider-anchor ${isDragging ? 'is-dragging' : ''}`}
+                  className={`pogo-rider-anchor ${isDragging ? 'is-dragging' : ''} ${renderPos.isJumping ? 'is-in-flight' : ''}`}
                   style={{
-                    transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
-                    transition: (isRunning || isDragging) ? 'none' : 'transform 0.15s ease',
+                    transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
                   }}
                 >
-                  {/* Subtle ground target circle when dragging */}
+                  {/* Subtle ground shadow while airborne */}
+                  {renderPos.isJumping && displayHop > 3 && (
+                    <ellipse
+                      cx="0"
+                      cy={displayHop}
+                      rx={Math.max(6, 14 - displayHop * 0.2)}
+                      ry={Math.max(2, 4 - displayHop * 0.05)}
+                      fill="rgba(0,0,0,0.22)"
+                    />
+                  )}
+
+                  {/* Ground target circle when dragging */}
                   {isDragging && (
                     <ellipse cx="0" cy="0" rx="14" ry="4" fill="rgba(0,0,0,0.25)" />
                   )}
+
                   <PogoRider
-                    slope={currentGrad}
-                    isBouncing={isRunning || isDragging}
-                    direction={currentGrad > 0 ? -1 : 1}
+                    angleDeg={displayNormalAngle}
+                    isBouncing={isDragging}
+                    isAirborne={renderPos.isJumping && displayHop > 2}
+                    jumpProgress={renderPos.progress}
+                    direction={renderPos.direction}
                     scale={isDragging ? 1.05 : 0.9}
                     showSpeechBubble={true}
                     speechText={
                       isDragging
                         ? 'Wheee! 🎯'
+                        : renderPos.isJumping
+                        ? displayHop > 18
+                          ? 'Wheeee! 🚀'
+                          : 'Hop! 💨'
                         : Math.abs(currentGrad) < 0.005
                         ? 'Valley reached! 🏁'
-                        : isRunning
-                        ? 'Boing! 💨'
                         : Math.abs(currentGrad) > 3
                         ? 'Steep hill! ⚠️'
-                        : 'Drag me!'
+                        : 'Ready to bounce!'
                     }
                   />
                 </g>
               ) : (
                 <g
-                  className={`animated-gradient-ball ${isDragging ? 'is-dragging' : ''}`}
+                  className={`animated-gradient-ball ${isDragging ? 'is-dragging' : ''} ${renderPos.isJumping ? 'is-in-flight' : ''}`}
                   style={{
-                    transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
-                    transition: (isRunning || isDragging) ? 'none' : 'transform 0.15s ease',
+                    transform: `translate(${scaleX(displayX)}px, ${scaleY(displayY) - displayHop}px)`,
                   }}
                 >
+                  {/* Ground shadow while airborne in math mode */}
+                  {renderPos.isJumping && displayHop > 3 && (
+                    <ellipse
+                      cx="0"
+                      cy={displayHop}
+                      rx={Math.max(4, 10 - displayHop * 0.15)}
+                      ry={Math.max(1.5, 3 - displayHop * 0.04)}
+                      fill="rgba(0,0,0,0.2)"
+                    />
+                  )}
+
                   {/* Outer Drag Target Halo */}
                   <circle
-                    r={isDragging ? '20' : '14'}
+                    r={isDragging ? '20' : renderPos.isJumping ? '16' : '14'}
                     fill="#EE7258"
                     opacity={isDragging ? '0.45' : '0.25'}
                     className="ball-pulsar"
@@ -754,8 +986,8 @@ export default function GradientDescent() {
               </button>
               <button
                 className="action-btn-secondary"
-                onClick={stepDescent}
-                disabled={isRunning}
+                onClick={() => executeJumpStep()}
+                disabled={isRunning || renderPos.isJumping}
               >
                 ⏭ Step
               </button>

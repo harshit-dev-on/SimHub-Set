@@ -227,6 +227,22 @@
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
 }
 
+.pogo-rider-anchor.is-in-flight {
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
+}
+
+.projectile-flight-arc {
+  stroke-linecap: round;
+  stroke-dasharray: 5 4;
+  animation: dashMove 0.8s linear infinite;
+}
+
+@keyframes dashMove {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
 .pogo-speech-bubble {
   animation: floatGentle 2s infinite ease-in-out;
 }

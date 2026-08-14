@@ -2,25 +2,50 @@ import React from 'react';
 
 /**
  * Pogo Stick Rider SVG character
- * Supports slope angle tilting, spring compression animation, and bounce displacement
+ * Supports slope angle tilting, spring compression/stretch animation, airborne flight physics and bounce displacement
  */
 export default function PogoRider({
+  angleDeg = 0,
   slope = 0,
   isBouncing = false,
+  isAirborne = false,
+  jumpProgress = 0, // 0 to 1
   direction = 1, // 1 for right, -1 for left
   scale = 1,
   showSpeechBubble = true,
   speechText = '',
 }) {
-  // Compute slope tilt angle (clamped to realistic tilt between -45 and 45 degrees)
-  const safeSlope = (typeof slope === 'number' && !isNaN(slope)) ? slope : 0;
-  const angleRad = Math.atan(safeSlope);
-  const angleDeg = Math.max(Math.min((angleRad * 180) / Math.PI, 45), -45);
+  // Use passed screen normal angle if available, otherwise compute from slope
+  let finalAngle = typeof angleDeg === 'number' && !isNaN(angleDeg) ? angleDeg : 0;
+  if (!angleDeg && slope) {
+    const safeSlope = (typeof slope === 'number' && !isNaN(slope)) ? slope : 0;
+    finalAngle = (Math.atan(safeSlope) * 180) / Math.PI;
+  }
+  
+  // Dynamic forward tilt while airborne in flight direction
+  if (isAirborne) {
+    const flightTilt = direction * Math.sin(jumpProgress * Math.PI) * 12;
+    finalAngle += flightTilt;
+  }
+  
+  const clampedAngle = Math.max(Math.min(finalAngle, 75), -75);
+
+  // In mid-air, character body stretches; on ground impact, squishes
+  let bodyStretchY = 1;
+  let bodyOffsetY = 0;
+  if (isAirborne) {
+    const arcHeightFactor = Math.sin(jumpProgress * Math.PI);
+    bodyStretchY = 1 + arcHeightFactor * 0.15;
+    bodyOffsetY = -arcHeightFactor * 3;
+  } else if (isBouncing) {
+    bodyStretchY = 0.88;
+    bodyOffsetY = 3;
+  }
 
   return (
     <g
-      className="pogo-rider-group"
-      transform={`rotate(${angleDeg}) scale(${scale})`}
+      className={`pogo-rider-group ${isAirborne ? 'is-airborne' : ''}`}
+      transform={`rotate(${clampedAngle}) scale(${scale})`}
       style={{ transformOrigin: '0px 0px' }}
     >
       {/* Speech / Thought Bubble */}
@@ -53,13 +78,13 @@ export default function PogoRider({
         </g>
       )}
 
-      {/* Dust Puffs when bouncing */}
-      {isBouncing && (
+      {/* Dust Puffs when jumping or landing */}
+      {(isBouncing || (isAirborne && (jumpProgress < 0.15 || jumpProgress > 0.85))) && (
         <g className="pogo-dust-puffs" transform="translate(0, 0)">
-          <circle cx="-8" cy="-2" r="3" fill="#D7CCC8" opacity="0.8" className="dust-particle-1" />
-          <circle cx="8" cy="-2" r="3" fill="#D7CCC8" opacity="0.8" className="dust-particle-2" />
-          <circle cx="-14" cy="-4" r="2" fill="#BCAAA4" opacity="0.6" className="dust-particle-3" />
-          <circle cx="14" cy="-4" r="2" fill="#BCAAA4" opacity="0.6" className="dust-particle-4" />
+          <circle cx="-8" cy="-2" r="3.5" fill="#D7CCC8" opacity="0.8" className="dust-particle-1" />
+          <circle cx="8" cy="-2" r="3.5" fill="#D7CCC8" opacity="0.8" className="dust-particle-2" />
+          <circle cx="-14" cy="-4" r="2.5" fill="#BCAAA4" opacity="0.6" className="dust-particle-3" />
+          <circle cx="14" cy="-4" r="2.5" fill="#BCAAA4" opacity="0.6" className="dust-particle-4" />
         </g>
       )}
 
@@ -68,7 +93,11 @@ export default function PogoRider({
       <rect x="-2.5" y="-6" width="5" height="6" rx="2" fill="#37474F" />
 
       {/* Pogo Spring Coil */}
-      <g className={`pogo-spring ${isBouncing ? 'compressing' : ''}`}>
+      <g
+        className={`pogo-spring ${isBouncing ? 'compressing' : ''}`}
+        transform={`scale(1, ${isAirborne ? 1.15 : (isBouncing ? 0.85 : 1)})`}
+        style={{ transformOrigin: '0px -6px' }}
+      >
         <path
           d="M -3 -6 L 3 -9 L -3 -12 L 3 -15 L -3 -18 L 3 -21 L 0 -24"
           fill="none"
@@ -79,8 +108,12 @@ export default function PogoRider({
         />
       </g>
 
-      {/* Pogo Shaft & Footpegs */}
-      <g transform={isBouncing ? 'translate(0, 3)' : 'translate(0, 0)'} className="pogo-upper-body">
+      {/* Pogo Shaft & Footpegs with Stretch/Squash */}
+      <g
+        transform={`translate(0, ${bodyOffsetY}) scale(1, ${bodyStretchY})`}
+        className="pogo-upper-body"
+        style={{ transformOrigin: '0px -24px' }}
+      >
         {/* Main Metal Rod */}
         <line x1="0" y1="-22" x2="0" y2="-44" stroke="#78909C" strokeWidth="3" strokeLinecap="round" />
 
