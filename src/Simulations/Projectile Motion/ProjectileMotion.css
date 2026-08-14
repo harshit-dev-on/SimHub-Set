@@ -1,0 +1,419 @@
+/* ==========================================================================
+   Projectile Motion Simulation - Editorial Physics Studio
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Interactive Ballistic Stage
+   -------------------------------------------------------------------------- */
+.projectile-stage-card {
+  background: #FFFDF5;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.projectile-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.stage-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-mode-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.05);
+  color: #2D2B24;
+}
+
+.stage-status-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.status-dot.in-flight {
+  background: #F59E0B;
+  animation: pulseGlow 1.5s infinite;
+}
+
+.stage-overlay-toggles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-chip {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.04);
+  color: #64748B;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-chip.active {
+  background: #1E293B;
+  color: #FFFFFF;
+  border-color: #0F172A;
+}
+
+/* --------------------------------------------------------------------------
+   SVG Canvas Viewport
+   -------------------------------------------------------------------------- */
+.projectile-svg-viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  background: radial-gradient(circle at 10% 20%, rgba(254, 240, 138, 0.15), transparent 40%),
+              linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 82%, #CBD5E1 83%, #94A3B8 100%);
+  user-select: none;
+  cursor: default;
+}
+
+.projectile-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Sky and Grid */
+.grid-line {
+  stroke: rgba(0, 0, 0, 0.04);
+  stroke-dasharray: 4 4;
+}
+
+.ground-elevation-base {
+  fill: #E2E8F0;
+  stroke: #94A3B8;
+  stroke-width: 2;
+}
+
+.ground-dirt-fill {
+  fill: #E0D7C3;
+}
+
+.grass-top-rim {
+  stroke: #84CC16;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* Cannon Graphics */
+.cannon-platform {
+  fill: #64748B;
+  stroke: #475569;
+  stroke-width: 1.5;
+}
+
+.cannon-wheel {
+  fill: #334155;
+  stroke: #1E293B;
+  stroke-width: 2;
+}
+
+.cannon-barrel {
+  fill: url(#cannonMetalGradient);
+  stroke: #0F172A;
+  stroke-width: 2;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.25));
+  transform-origin: 0px 0px;
+  cursor: grab;
+}
+
+.cannon-barrel:active {
+  cursor: grabbing;
+}
+
+.angle-arc-guide {
+  stroke: #F59E0B;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  fill: rgba(245, 158, 11, 0.12);
+}
+
+/* Trajectories */
+.trajectory-active-path {
+  fill: none;
+  stroke: #DC2626;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(220, 38, 38, 0.2));
+}
+
+.trajectory-predicted-path {
+  fill: none;
+  stroke: rgba(220, 38, 38, 0.35);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  stroke-linecap: round;
+}
+
+.trajectory-ghost-path {
+  fill: none;
+  stroke: rgba(100, 116, 139, 0.35);
+  stroke-width: 1.8;
+  stroke-dasharray: 3 3;
+}
+
+/* Markers */
+.apex-marker-line {
+  stroke: #2563EB;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.range-marker-line {
+  stroke: #16A34A;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.marker-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Projectile Body */
+.projectile-ball {
+  fill: #1E293B;
+  stroke: #FFFFFF;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+}
+
+.projectile-glow {
+  animation: pulseGlow 1.5s infinite;
+}
+
+/* Vector Arrows */
+.vector-arrow-v {
+  stroke: #DC2626;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.vector-arrow-vx {
+  stroke: #2563EB;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.vector-arrow-vy {
+  stroke: #16A34A;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Target Bullseye */
+.target-base-post {
+  stroke: #78350F;
+  stroke-width: 4;
+}
+
+.target-outer-ring {
+  fill: #EF4444;
+  stroke: #B91C1C;
+  stroke-width: 1.5;
+  cursor: ew-resize;
+}
+
+.target-mid-ring {
+  fill: #FFFFFF;
+  stroke: #DC2626;
+  stroke-width: 1;
+  cursor: ew-resize;
+}
+
+.target-bullseye-center {
+  fill: #EF4444;
+  cursor: ew-resize;
+}
+
+.target-hit-splash {
+  animation: splashScale 0.6s ease-out forwards;
+}
+
+@keyframes splashScale {
+  0% { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   Analysis Pane Subcards & Gauges
+   -------------------------------------------------------------------------- */
+.bento-subcard {
+  background: #FFFDF5;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.bento-subcard.surface-yellow {
+  background: #FEF9C3;
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.bento-subcard.surface-blue {
+  background: #EFF6FF;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.bento-subcard.surface-green {
+  background: #F0FDF4;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.bento-subcard.surface-purple {
+  background: #FAF5FF;
+  border-color: rgba(168, 85, 247, 0.2);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title-text {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0;
+}
+
+.doodle-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.06);
+  color: #475569;
+}
+
+/* Telemetry Grid */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.telemetry-metric-tile {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.metric-label-small {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748B;
+}
+
+.metric-value-accent {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+/* Energy Bars */
+.energy-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+}
+
+.energy-segment-ke {
+  background: #EF4444;
+  height: 100%;
+  transition: width 0.08s ease;
+}
+
+.energy-segment-pe {
+  background: #3B82F6;
+  height: 100%;
+  transition: width 0.08s ease;
+}
+
+.energy-legend-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* Formula Equations */
+.equation-box {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eq-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.eq-var {
+  color: #DC2626;
+  font-weight: 700;
+}
+
+.eq-val {
+  color: #2563EB;
+  font-weight: 700;
+}

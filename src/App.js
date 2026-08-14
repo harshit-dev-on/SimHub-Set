@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
 import MontyHall from './Simulations/Monty Hall/MontyHall';
+import ProjectileMotion from './Simulations/Projectile Motion/ProjectileMotion';
 
 function App() {
-  const [activeSimulation, setActiveSimulation] = useState('monty-hall');
+  const [activeSimulation, setActiveSimulation] = useState('projectile-motion');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync state with native fullscreen changes (e.g. Esc or F11 key)
@@ -60,6 +61,7 @@ function App() {
   const simulationsList = [
     { id: 'gradient-descent', title: 'Gradient Descent', icon: '📉', tag: 'Optimization' },
     { id: 'monty-hall', title: 'Monty Hall Problem', icon: '🚪', tag: 'Probability' },
+    { id: 'projectile-motion', title: 'Projectile Motion', icon: '🎯', tag: 'Physics' },
   ];
 
   return (
@@ -127,6 +129,7 @@ function App() {
       <main className="simhub-main-stage">
         {activeSimulation === 'gradient-descent' && <GradientDescent />}
         {activeSimulation === 'monty-hall' && <MontyHall />}
+        {activeSimulation === 'projectile-motion' && <ProjectileMotion />}
       </main>
 
       {/* Floating Minimise Button when in Fullscreen Mode */}
