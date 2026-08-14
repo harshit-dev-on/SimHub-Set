@@ -4,6 +4,7 @@ import './ElectronClouding.css';
 import {
   ORBITAL_PRESETS,
   evaluateRadialWavefunction,
+  evaluateSphericalHarmonic,
   evaluateWavefunction,
   generateElectronCloudSamples,
   getOrbitalQuantumInfo,
@@ -413,7 +414,6 @@ function ElectronClouding() {
     // Mode 2: 🔮 3D Isosurface Lobes (Boundary Surface Enclosing 90% Probability)
     // ------------------------------------------------------------------------
     if (viewMode === 'lobes') {
-      const maxRadius = Math.max(6, n * n * 2.8);
       const uSteps = 56;
       const vSteps = 56;
 
@@ -431,25 +431,16 @@ function ElectronClouding() {
             const dirY = Math.sin(theta) * Math.sin(phi);
             const dirZ = Math.cos(theta);
 
-            // Find boundary radius where |ψ|^2 crosses 90% contour threshold
-            let lobeRadius = 0.5;
-            let peakR = 1.0;
-            let maxPsi = 0;
+            // Scale lobe boundary radius based on angular spherical harmonic strength
+            const Y = evaluateSphericalHarmonic(l, m, dirX, dirY, dirZ);
+            const peakRadius = Math.max(4, n * n * (l === 0 ? 0.9 : 0.8));
 
-            for (let rStep = 0.5; rStep < maxRadius; rStep += 0.5) {
-              const { psi, probDensity } = evaluateWavefunction(n, l, m, dirX * rStep, dirY * rStep, dirZ * rStep);
-              if (probDensity > maxPsi && Math.sign(psi) === phaseSign) {
-                maxPsi = probDensity;
-                peakR = rStep;
-              }
-            }
-
-            // Scale lobe proportional to angular harmonic strength
-            const { psi } = evaluateWavefunction(n, l, m, dirX * peakR, dirY * peakR, dirZ * peakR);
-            if (Math.sign(psi) === phaseSign && Math.abs(psi) > 0.001) {
-              lobeRadius = peakR * Math.min(1.4, Math.max(0.2, Math.pow(Math.abs(psi) * 20, 0.3)));
-            } else {
-              lobeRadius = 0.1;
+            let lobeRadius = 0.1;
+            if (l === 0) {
+              lobeRadius = peakRadius;
+            } else if (Math.sign(Y) === phaseSign && Math.abs(Y) > 1e-4) {
+              const harmonicMagnitude = Math.pow(Math.abs(Y) * Math.sqrt(4 * Math.PI), 0.7);
+              lobeRadius = Math.max(0.2, peakRadius * harmonicMagnitude);
             }
 
             positions.push(dirX * lobeRadius, dirY * lobeRadius, dirZ * lobeRadius);
@@ -642,6 +633,27 @@ function ElectronClouding() {
     }
     return { pts, maxP, peakR };
   }, [n, l, maxR]);
+
+  const angularProbabilityPoints = useMemo(() => {
+    const pts = [];
+    const count = 90;
+    let maxY = 0.05;
+
+    for (let i = 0; i <= count; i++) {
+      const thetaDeg = (i / count) * 180;
+      const thetaRad = (thetaDeg * Math.PI) / 180;
+      const phiRad = m < 0 ? Math.PI / 2 : 0;
+      const dirX = Math.sin(thetaRad) * Math.cos(phiRad);
+      const dirY = Math.sin(thetaRad) * Math.sin(phiRad);
+      const dirZ = Math.cos(thetaRad);
+
+      const Y = evaluateSphericalHarmonic(l, m, dirX, dirY, dirZ);
+      const Y2 = Y * Y;
+      pts.push({ thetaDeg, Y2, Y });
+      if (Y2 > maxY) maxY = Y2;
+    }
+    return { pts, maxY };
+  }, [l, m]);
 
   return (
     <div className="sim-split-studio-layout">
@@ -1126,6 +1138,66 @@ function ElectronClouding() {
               <span style={{ fontSize: '10px', color: '#64748B' }}>
                 Probability of finding the electron inside a spherical shell of radius r and thickness dr.
               </span>
+            </div>
+          )}
+
+          {/* Angular Probability Distribution Graph |Y_lm(θ, φ)|^2 */}
+          {(activeAnalysisTab === 'all' || activeAnalysisTab === 'wavefunctions') && (
+            <div className="bento-subcard surface-purple">
+              <div className="card-top-row">
+                <h4 className="card-title-text">3. Angular Probability |Y_{l}{m}(θ, φ)|²</h4>
+                <span className="doodle-badge">Polar Angle θ (0°–180°)</span>
+              </div>
+              <svg viewBox="0 0 320 120" className="kinematics-mini-svg">
+                <line x1="35" y1="20" x2="305" y2="20" stroke="#CBD5E1" strokeDasharray="3 3" />
+                <line x1="35" y1="105" x2="305" y2="105" stroke="#94A3B8" strokeWidth="1.5" />
+                <line x1="35" y1="15" x2="35" y2="105" stroke="#94A3B8" strokeWidth="1.5" />
+
+                <text x="30" y="24" textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+                  {angularProbabilityPoints.maxY.toFixed(2)}
+                </text>
+                <text x="30" y="108" textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+                  0
+                </text>
+                <text x="35" y="117" textAnchor="start" fontSize="9" fill="#64748B" fontFamily="monospace">
+                  0° (North)
+                </text>
+                <text x="170" y="117" textAnchor="middle" fontSize="9" fill="#64748B" fontFamily="monospace">
+                  90° (Equator)
+                </text>
+                <text x="305" y="117" textAnchor="end" fontSize="9" fill="#64748B" fontFamily="monospace">
+                  180° (South)
+                </text>
+
+                {/* Shaded Area Under Curve */}
+                <path
+                  d={`M 35 105 ${angularProbabilityPoints.pts
+                    .map((p) => {
+                      const sx = 35 + (p.thetaDeg / 180) * 270;
+                      const sy = 105 - (p.Y2 / (angularProbabilityPoints.maxY || 1)) * 85;
+                      return `L ${sx.toFixed(1)} ${sy.toFixed(1)}`;
+                    })
+                    .join(' ')} L 305 105 Z`}
+                  fill="rgba(168, 85, 247, 0.18)"
+                />
+
+                {/* |Y|^2 Curve */}
+                <path
+                  d={angularProbabilityPoints.pts
+                    .map((p, i) => {
+                      const sx = 35 + (p.thetaDeg / 180) * 270;
+                      const sy = 105 - (p.Y2 / (angularProbabilityPoints.maxY || 1)) * 85;
+                      return `${i === 0 ? 'M' : 'L'} ${sx.toFixed(1)} ${sy.toFixed(1)}`;
+                    })
+                    .join(' ')}
+                  fill="none"
+                  stroke="#9333EA"
+                  strokeWidth="2.5"
+                />
+              </svg>
+              <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.35, background: 'rgba(255,255,255,0.7)', padding: '6px 8px', borderRadius: '6px' }}>
+                💡 <strong>Why all 3d (or 2p, 4f) radial graphs are identical:</strong> In hydrogen-like atoms, the radial wavefunction <em>R_nl(r)</em> and radial probability <em>P(r)</em> depend strictly on <em>(n, l)</em>. The individual orbitals in a subshell differ exclusively in their angular harmonics <em>|Y_lm(θ, φ)|²</em> and 3D spatial orientation.
+              </div>
             </div>
           )}
 

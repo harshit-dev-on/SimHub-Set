@@ -68,19 +68,19 @@ export function evaluateRadialWavefunction(n, l, r) {
     return 0.25 * poly * Math.exp(-0.25 * r);
   }
   if (n === 4 && l === 1) {
-    // 4p: (sqrt(5) / (16 * sqrt(3))) * (r/4) * (1 - r/4 + r^2/80) * exp(-r/4)
-    const factor = Math.sqrt(5.0) / (64.0 * Math.sqrt(3.0));
+    // 4p: (sqrt(5) / (16 * sqrt(3))) * r * (1 - r/4 + r^2/80) * exp(-r/4)
+    const factor = Math.sqrt(5.0) / (16.0 * Math.sqrt(3.0));
     const poly = 1.0 - 0.25 * r + (r * r) / 80.0;
     return factor * r * poly * Math.exp(-0.25 * r);
   }
   if (n === 4 && l === 2) {
-    // 4d: (1 / (64 * sqrt(5))) * (r/4)^2 * (1 - r/12) * exp(-r/4)
-    const factor = 1.0 / (1024.0 * Math.sqrt(5.0));
+    // 4d: (1 / (64 * sqrt(5))) * r^2 * (1 - r/12) * exp(-r/4)
+    const factor = 1.0 / (64.0 * Math.sqrt(5.0));
     return factor * r * r * (1.0 - r / 12.0) * Math.exp(-0.25 * r);
   }
   if (n === 4 && l === 3) {
-    // 4f: (1 / (768 * sqrt(35))) * (r/4)^3 * exp(-r/4)
-    const factor = 1.0 / (49152.0 * Math.sqrt(35.0));
+    // 4f: (1 / (768 * sqrt(35))) * r^3 * exp(-r/4)
+    const factor = 1.0 / (768.0 * Math.sqrt(35.0));
     return factor * r * r * r * Math.exp(-0.25 * r);
   }
 
@@ -225,16 +225,24 @@ export function generateElectronCloudSamples(n, l, m, sampleCount = 15000) {
   const positions = new Float32Array(sampleCount * 3);
   const colors = new Float32Array(sampleCount * 3);
 
-  // Peak estimate for rejection sampling
+  // Robust peak estimate for rejection sampling across multiple spatial directions
   let peakProb = 0;
-  for (let i = 0; i < 600; i++) {
-    const testR = (i / 600) * maxRadius;
-    const { probDensity } = evaluateWavefunction(n, l, m, testR, 0, 0);
-    if (probDensity > peakProb) peakProb = probDensity;
-    const { probDensity: pZ } = evaluateWavefunction(n, l, m, 0, 0, testR);
-    if (pZ > peakProb) peakProb = pZ;
+  const testDirections = [
+    [1, 0, 0], [0, 1, 0], [0, 0, 1],
+    [1, 1, 0], [1, 0, 1], [0, 1, 1],
+    [1, 1, 1], [1, -1, 1], [-1, 1, 1],
+    [0.577, 0.577, 0.577], [0.707, 0, 0.707]
+  ];
+
+  for (let i = 1; i <= 300; i++) {
+    const testR = (i / 300) * maxRadius;
+    for (const [dx, dy, dz] of testDirections) {
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const { probDensity } = evaluateWavefunction(n, l, m, (dx / len) * testR, (dy / len) * testR, (dz / len) * testR);
+      if (probDensity > peakProb) peakProb = probDensity;
+    }
   }
-  if (peakProb < 1e-7) peakProb = 0.05;
+  if (peakProb < 1e-8) peakProb = 0.001;
 
   let accepted = 0;
   let iterations = 0;
