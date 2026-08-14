@@ -13,7 +13,8 @@ export default function PogoRider({
   speechText = '',
 }) {
   // Compute slope tilt angle (clamped to realistic tilt between -45 and 45 degrees)
-  const angleRad = Math.atan(slope);
+  const safeSlope = (typeof slope === 'number' && !isNaN(slope)) ? slope : 0;
+  const angleRad = Math.atan(safeSlope);
   const angleDeg = Math.max(Math.min((angleRad * 180) / Math.PI, 45), -45);
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './GradientDescent.css';
 import { LOSS_FUNCTIONS, OPTIMIZERS } from './simulationMath';
+import { compileMathExpression } from './mathParser';
 import CustomFunctionModal from './CustomFunctionModal';
 import PogoRider from './PogoRider';
 
@@ -11,21 +12,18 @@ export default function GradientDescent() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Re-compile dynamic functions from saved raw expressions
         const recompiled = {};
         parsed.forEach((item) => {
           try {
-            // eslint-disable-next-line no-new-func
-            const fn = new Function('x', `"use strict"; return (${item.transformedExpr});`);
-            const derivative = (x) => {
-              const h = 1e-5;
-              return (fn(x + h) - fn(x - h)) / (2 * h);
-            };
-            recompiled[item.id] = {
-              ...item,
-              fn,
-              derivative,
-            };
+            const expr = item.rawExpr || item.transformedExpr;
+            if (expr) {
+              const res = compileMathExpression(expr);
+              recompiled[item.id] = {
+                ...item,
+                fn: res.fn,
+                derivative: res.derivative,
+              };
+            }
           } catch {
             // skip corrupted item
           }
@@ -205,9 +203,12 @@ export default function GradientDescent() {
     };
   }, [isRunning, playbackSpeed, stepDescent]);
 
-  // Current mathematical metrics
-  const currentY = currentFunc.fn(currentX);
-  const currentGrad = currentFunc.derivative(currentX);
+  // Current mathematical metrics safely evaluated
+  const safeFn = currentFunc.fn || ((x) => x * x);
+  const safeDeriv = currentFunc.derivative || ((x) => 2 * x);
+
+  const currentY = safeFn(currentX);
+  const currentGrad = safeDeriv(currentX);
   const nextStepDelta = -learningRate * currentGrad;
   const theoreticalNextX = currentX + nextStepDelta;
 
@@ -219,32 +220,42 @@ export default function GradientDescent() {
   const plotWidth = svgWidth - padding.left - padding.right;
   const plotHeight = svgHeight - padding.top - padding.bottom;
 
+  const xSpan = (currentFunc.xMax - currentFunc.xMin) || 1;
+  const ySpan = (currentFunc.yMax - currentFunc.yMin) || 1;
+
   const scaleX = (x) => {
-    return padding.left + ((x - currentFunc.xMin) / (currentFunc.xMax - currentFunc.xMin)) * plotWidth;
+    const clampedX = isNaN(x) ? currentFunc.xMin : x;
+    return padding.left + ((clampedX - currentFunc.xMin) / xSpan) * plotWidth;
   };
 
   const scaleY = (y) => {
-    return padding.top + plotHeight - ((y - currentFunc.yMin) / (currentFunc.yMax - currentFunc.yMin)) * plotHeight;
+    const clampedY = isNaN(y) ? currentFunc.yMin : y;
+    return padding.top + plotHeight - ((clampedY - currentFunc.yMin) / ySpan) * plotHeight;
   };
 
   // Generate SVG path for loss curve
   const curvePoints = [];
   const resolution = 150;
   for (let i = 0; i <= resolution; i++) {
-    const xVal = currentFunc.xMin + (i / resolution) * (currentFunc.xMax - currentFunc.xMin);
-    const yVal = currentFunc.fn(xVal);
-    // Clamp to avoid extreme spikes on screen
-    const clampedY = Math.min(Math.max(yVal, currentFunc.yMin), currentFunc.yMax + 5);
-    curvePoints.push(`${scaleX(xVal)},${scaleY(clampedY)}`);
+    const xVal = currentFunc.xMin + (i / resolution) * xSpan;
+    let yVal = 0;
+    try {
+      yVal = safeFn(xVal);
+      if (isNaN(yVal) || !isFinite(yVal)) yVal = currentFunc.yMin;
+    } catch {
+      yVal = currentFunc.yMin;
+    }
+    const clampedY = Math.min(Math.max(yVal, currentFunc.yMin - 10), currentFunc.yMax + 10);
+    curvePoints.push(`${scaleX(xVal).toFixed(1)},${scaleY(clampedY).toFixed(1)}`);
   }
   const curvePathD = `M ${curvePoints.join(' L ')}`;
 
   // Tangent line calculation at current point
   const tangentSpan = 0.8;
   const tanX1 = currentX - tangentSpan;
-  const tanY1 = currentY - currentGrad * tangentSpan;
+  const tanY1 = currentY - (isNaN(currentGrad) ? 0 : currentGrad) * tangentSpan;
   const tanX2 = currentX + tangentSpan;
-  const tanY2 = currentY + currentGrad * tangentSpan;
+  const tanY2 = currentY + (isNaN(currentGrad) ? 0 : currentGrad) * tangentSpan;
 
   // Handle click on canvas to set starting point
   const handleSvgClick = (e) => {
@@ -401,8 +412,8 @@ export default function GradientDescent() {
                     strokeLinecap="round"
                   />
                   {/* Goal Minima Flag 🚩 */}
-                  {currentFunc.optimum !== undefined && (
-                    <g transform={`translate(${scaleX(currentFunc.optimum)}, ${scaleY(currentFunc.fn(currentFunc.optimum))})`}>
+                  {currentFunc.optimum !== undefined && !isNaN(currentFunc.optimum) && (
+                    <g transform={`translate(${scaleX(currentFunc.optimum)}, ${scaleY(safeFn(currentFunc.optimum))})`}>
                       <line x1="0" y1="0" x2="0" y2="-28" stroke="#37474F" strokeWidth="2.5" strokeLinecap="round" />
                       <polygon points="0,-28 16,-22 0,-16" fill="#EF4444" />
                       <circle cx="0" cy="-29" r="2" fill="#F59E0B" />
