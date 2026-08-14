@@ -49,6 +49,17 @@ function ElectronClouding() {
   const isDraggingRef = useRef(false);
   const previousMouseRef = useRef({ x: 0, y: 0 });
 
+  // Refs to decouple animation loop from component re-mounts
+  const autoRotateRef = useRef(autoRotate);
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
+
+  const nRef = useRef(n);
+  useEffect(() => {
+    nRef.current = n;
+  }, [n]);
+
   // Current Orbital Metadata
   const currentPreset = useMemo(() => {
     return (
@@ -288,7 +299,7 @@ function ElectronClouding() {
     const renderLoop = () => {
       animFrameIdRef.current = requestAnimationFrame(renderLoop);
 
-      if (autoRotate && !isDraggingRef.current) {
+      if (autoRotateRef.current && !isDraggingRef.current) {
         sphericalRef.current.theta += 0.004;
         updateCameraPos();
       }
@@ -296,7 +307,8 @@ function ElectronClouding() {
       // Animate Bohr Electron Orbit if in Bohr mode
       if (bohrGroupRef.current && bohrGroupRef.current.visible) {
         bohrAngle += 0.035;
-        const bohrRadius = n * n; // r = n^2 * a_0 in Bohr model
+        const currentN = nRef.current || 1;
+        const bohrRadius = currentN * currentN; // r = n^2 * a_0 in Bohr model
         const electronMesh = bohrGroupRef.current.getObjectByName('bohrElectron');
         if (electronMesh) {
           electronMesh.position.x = bohrRadius * Math.cos(bohrAngle);
@@ -318,7 +330,8 @@ function ElectronClouding() {
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
     };
-  }, [autoRotate, n]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --------------------------------------------------------------------------
   // Update 3D Quantum Objects on (n, l, m, viewMode, pointCount) Changes
