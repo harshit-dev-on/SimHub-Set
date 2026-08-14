@@ -10,12 +10,18 @@ export default function DoorCard({
   isSwitchTarget = false,
   showResult = false,
   phase = 'PICK_INITIAL',
+  totalDoors = 3,
 }) {
   const { doorNumber, hasCar, isOpen, isSelected, isHostOpened } = door;
 
+  let sizeClass = 'large';
+  if (totalDoors >= 35) sizeClass = 'mini';
+  else if (totalDoors >= 14) sizeClass = 'compact';
+  else if (totalDoors >= 7) sizeClass = 'medium';
+
   return (
     <div
-      className={`door-card-container ${isOpen ? 'is-open' : 'is-closed'} ${
+      className={`door-card-container door-size-${sizeClass} ${isOpen ? 'is-open' : 'is-closed'} ${
         isSelected ? 'is-selected' : ''
       } ${isHostOpened ? 'is-host-opened' : ''} ${
         isSwitchTarget ? 'is-switch-target' : ''

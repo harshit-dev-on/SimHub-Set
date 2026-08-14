@@ -35,9 +35,10 @@ export default function MontyHall() {
     setActiveCase(null);
   }, [numDoors]);
 
-  // Handle number of doors change
+  // Handle number of doors change (any N >= 3)
   const handleNumDoorsChange = (newCount) => {
-    const clamped = Math.max(3, Math.min(12, newCount));
+    const parsed = parseInt(newCount, 10);
+    const clamped = Math.max(3, Math.min(100, isNaN(parsed) ? 3 : parsed));
     setNumDoors(clamped);
     startNewRound(clamped);
   };
@@ -331,9 +332,9 @@ export default function MontyHall() {
           <div className="doors-stage-card">
             <div className="doors-stage-header">
               <div className="stage-door-count-control">
-                <span className="stage-label">Doors Count:</span>
-                <div className="doors-slider-group">
-                  {[3, 4, 5, 8, 10].map((count) => (
+                <span className="stage-label">Doors (N):</span>
+                <div className="doors-quick-presets">
+                  {[3, 4, 5, 8, 10, 20, 50, 100].map((count) => (
                     <button
                       key={count}
                       className={`door-count-btn ${numDoors === count ? 'active' : ''}`}
@@ -342,6 +343,39 @@ export default function MontyHall() {
                       {count}
                     </button>
                   ))}
+                </div>
+
+                <div className="custom-door-input-group">
+                  <button
+                    className="stepper-btn"
+                    onClick={() => handleNumDoorsChange(numDoors - 1)}
+                    disabled={numDoors <= 3}
+                    title="Decrease Doors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="3"
+                    max="100"
+                    value={numDoors}
+                    onChange={(e) => handleNumDoorsChange(e.target.value)}
+                    className="custom-door-number-input"
+                    title="Enter any number of doors (3 - 100)"
+                  />
+                  <button
+                    className="stepper-btn"
+                    onClick={() => handleNumDoorsChange(numDoors + 1)}
+                    disabled={numDoors >= 100}
+                    title="Increase Doors"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <div className="door-prob-preview-pill">
+                  <span>Switch: <strong>{(((numDoors - 1) / numDoors) * 100).toFixed(1)}%</strong></span>
+                  <span>Stick: <strong>{((1 / numDoors) * 100).toFixed(1)}%</strong></span>
                 </div>
               </div>
 
@@ -352,8 +386,33 @@ export default function MontyHall() {
               </div>
             </div>
 
+            {/* Active Contenders Spotlight for High N Doors in Phase 3 & 4 */}
+            {numDoors >= 6 && (game.phase === 'FINAL_DECISION' || game.phase === 'ROUND_OVER') && (
+              <div className="contenders-spotlight-card">
+                <div className="spotlight-title-row">
+                  <span className="spotlight-badge">⚡ The Final Matchup</span>
+                  <span className="spotlight-note">
+                    Monty opened {game.hostOpenedDoors.length} goat doors! Only 2 doors remain closed:
+                  </span>
+                </div>
+                <div className="spotlight-matchup-row">
+                  <div className="contender-box contender-stick">
+                    <span className="contender-tag">🔒 Your Initial Pick</span>
+                    <strong className="contender-num">Door #{game.playerInitialPick + 1}</strong>
+                    <span className="contender-prob">Initial Blind Guess: <strong>{((1 / numDoors) * 100).toFixed(1)}%</strong></span>
+                  </div>
+                  <span className="matchup-vs-badge">VS</span>
+                  <div className="contender-box contender-switch">
+                    <span className="contender-tag">🔀 Switch Target</span>
+                    <strong className="contender-num">Door #{switchTargetDoor + 1}</strong>
+                    <span className="contender-prob">Filtered by Monty: <strong>{(((numDoors - 1) / numDoors) * 100).toFixed(1)}%</strong></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Doors Flex Grid */}
-            <div className={`doors-grid-container doors-count-${numDoors}`}>
+            <div className={`doors-grid-container doors-count-${numDoors} ${numDoors >= 14 ? 'is-dense-grid' : ''}`}>
               {game.doors.map((door) => (
                 <DoorCard
                   key={door.id}
@@ -363,6 +422,7 @@ export default function MontyHall() {
                   isSwitchTarget={door.id === switchTargetDoor}
                   showResult={game.phase === 'ROUND_OVER'}
                   phase={game.phase}
+                  totalDoors={numDoors}
                 />
               ))}
             </div>

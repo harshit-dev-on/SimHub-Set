@@ -138,24 +138,26 @@
 .stage-door-count-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stage-label {
   font-size: 13px;
-  font-weight: 700;
-  color: #555;
+  font-weight: 800;
+  color: #1B1C20;
 }
 
-.doors-slider-group {
+.doors-quick-presets {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .door-count-btn {
   background: #F4F1E6;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -174,6 +176,77 @@
   background: #EAE5D4;
 }
 
+/* Custom Door Number Input Stepper */
+.custom-door-input-group {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.stepper-btn {
+  background: #F4F1E6;
+  border: none;
+  width: 26px;
+  height: 28px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #EAE5D4;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.custom-door-number-input {
+  width: 44px;
+  height: 28px;
+  border: none;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: #1B1C20;
+  background: transparent;
+  outline: none;
+}
+
+.custom-door-number-input::-webkit-inner-spin-button,
+.custom-door-number-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Probability Preview Pill */
+.door-prob-preview-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FAF6E8;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: #555;
+}
+
+.door-prob-preview-pill strong {
+  color: #1B1C20;
+}
+
 .doors-hint-tag {
   font-size: 12px;
   font-weight: 600;
@@ -183,30 +256,147 @@
   border-radius: var(--radius-full);
 }
 
+/* --------------------------------------------------------------------------
+   Contenders Spotlight Matchup Card (for High N Doors)
+   -------------------------------------------------------------------------- */
+.contenders-spotlight-card {
+  background: #FEF9C3;
+  border: 1.5px solid #FDE047;
+  border-radius: 16px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(253, 224, 71, 0.25);
+}
+
+.spotlight-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spotlight-badge {
+  background: #854D0E;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.spotlight-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: #713F12;
+}
+
+.spotlight-matchup-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.contender-box {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1.5px solid transparent;
+}
+
+.contender-stick {
+  border-color: #E2E8F0;
+}
+
+.contender-switch {
+  border-color: #86EFAC;
+  background: #F0FDF4;
+}
+
+.contender-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748B;
+}
+
+.contender-switch .contender-tag {
+  color: #166534;
+}
+
+.contender-num {
+  font-size: 16px;
+  font-weight: 900;
+  color: #0F172A;
+  font-family: var(--font-primary);
+}
+
+.contender-prob {
+  font-size: 11px;
+  color: #64748B;
+}
+
+.contender-prob strong {
+  color: #0F172A;
+}
+
+.matchup-vs-badge {
+  font-size: 12px;
+  font-weight: 900;
+  color: #B45309;
+  background: #FEF08A;
+  padding: 4px 8px;
+  border-radius: 50%;
+  border: 1px solid #FDE047;
+}
+
 /* Doors Grid Layout */
 .doors-grid-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 20px 0;
-  min-height: 240px;
+  padding: 14px 4px;
+  min-height: 180px;
+  max-height: 310px;
+  overflow-y: auto;
 }
 
-.doors-count-8,
-.doors-count-10 {
-  gap: 14px;
+.doors-grid-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.doors-grid-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+
+.doors-grid-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.doors-grid-container.is-dense-grid {
+  gap: 6px;
+  padding: 8px 2px;
+  align-content: flex-start;
 }
 
 /* --------------------------------------------------------------------------
-   3D Door Card Component
+   3D Door Card Component (Size Variants)
    -------------------------------------------------------------------------- */
 .door-card-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   cursor: default;
   transition: transform 0.2s ease;
   user-select: none;
@@ -221,18 +411,109 @@
 }
 
 .door-perspective-frame {
-  width: 140px;
-  height: 220px;
   position: relative;
   perspective: 1000px;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
 }
 
-.doors-count-8 .door-perspective-frame,
-.doors-count-10 .door-perspective-frame {
+/* Size: Large (3 to 6 doors) */
+.door-size-large .door-perspective-frame {
+  width: 140px;
+  height: 220px;
+}
+
+/* Size: Medium (7 to 13 doors) */
+.door-size-medium .door-perspective-frame {
   width: 100px;
-  height: 160px;
+  height: 155px;
+  border-radius: 10px;
+}
+
+.door-size-medium .door-num-text {
+  font-size: 16px;
+}
+
+.door-size-medium .brass-number-plate {
+  padding: 2px 8px;
+}
+
+.door-size-medium .prize-svg {
+  max-height: 70px;
+}
+
+/* Size: Compact (14 to 34 doors) */
+.door-size-compact .door-perspective-frame {
+  width: 72px;
+  height: 110px;
+  border-radius: 8px;
+}
+
+.door-size-compact .door-num-text {
+  font-size: 12px;
+}
+
+.door-size-compact .brass-number-plate {
+  padding: 1px 6px;
+}
+
+.door-size-compact .brass-door-knob {
+  width: 9px;
+  height: 9px;
+  right: 6px;
+}
+
+.door-size-compact .prize-label-pill,
+.door-size-compact .sparkle-stars {
+  display: none;
+}
+
+.door-size-compact .prize-svg {
+  max-height: 50px;
+}
+
+.door-size-compact .door-status-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+}
+
+/* Size: Mini (35 to 100 doors) */
+.door-size-mini .door-perspective-frame {
+  width: 48px;
+  height: 72px;
+  border-radius: 6px;
+}
+
+.door-size-mini .door-num-text {
+  font-size: 10px;
+}
+
+.door-size-mini .brass-number-plate {
+  padding: 0 4px;
+}
+
+.door-size-mini .brass-door-knob {
+  width: 6px;
+  height: 6px;
+  right: 4px;
+}
+
+.door-size-mini .wood-inset-box {
+  border-width: 1px;
+}
+
+.door-size-mini .prize-label-pill,
+.door-size-mini .sparkle-stars {
+  display: none;
+}
+
+.door-size-mini .prize-svg {
+  max-height: 32px;
+}
+
+.door-size-mini .door-status-badge {
+  font-size: 8px;
+  padding: 1px 3px;
 }
 
 /* Interior Prize / Goat Room */
