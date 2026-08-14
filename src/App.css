@@ -1,38 +1,143 @@
-.App {
-  text-align: center;
-}
+/* ==========================================================================
+   SimHub - Editorial Simulation Hub Styles
+   ========================================================================== */
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+.simhub-root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: radial-gradient(circle at 50% 10%, #F5F4EE 0%, #E6E7ED 100%);
+  color: #17181C;
+}
+
+/* --------------------------------------------------------------------------
+   Top Navigation
+   -------------------------------------------------------------------------- */
+.simhub-top-nav {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 16px 36px;
+  background: rgba(250, 242, 216, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.simhub-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-badge-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #111216;
+  color: #FFFFFF;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral-card);
+  box-shadow: 0 0 10px rgba(238, 114, 88, 0.8);
+  animation: pulseGlow 1.8s infinite;
+}
+
+.brand-logo-text {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.brand-tagline {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6C6F7A;
+}
+
+/* Simulation Pills Nav */
+.sim-pills-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sim-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: #4C505D;
+  transition: all 0.2s ease;
+}
+
+.sim-pill-btn:hover:not(.disabled-sim) {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+}
+
+.sim-pill-btn.active {
+  background: #111216;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.sim-pill-btn.disabled-sim {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.coming-soon-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Main Simulation Stage
+   -------------------------------------------------------------------------- */
+.simhub-main-stage {
+  flex: 1;
+  padding: 36px 36px 60px 36px;
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
 }
 
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .simhub-top-nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 20px;
   }
-  to {
-    transform: rotate(360deg);
+  .brand-tagline {
+    display: none;
+  }
+  .simhub-main-stage {
+    padding: 20px 16px;
   }
 }
