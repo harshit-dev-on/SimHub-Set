@@ -4,6 +4,20 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Suppress benign ResizeObserver notification in CRA dev overlay
+window.addEventListener('error', (e) => {
+  if (
+    e.message === 'ResizeObserver loop completed with undelivered notifications.' ||
+    e.message === 'ResizeObserver loop limit exceeded' ||
+    (typeof e.message === 'string' && e.message.includes('ResizeObserver'))
+  ) {
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+    e.preventDefault();
+    return true;
+  }
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

@@ -3,9 +3,10 @@ import './App.css';
 import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
 import MontyHall from './Simulations/Monty Hall/MontyHall';
 import ProjectileMotion from './Simulations/Projectile Motion/ProjectileMotion';
+import ElectronClouding from './Simulations/Electron Clouding/ElectronClouding';
 
 function App() {
-  const [activeSimulation, setActiveSimulation] = useState('projectile-motion');
+  const [activeSimulation, setActiveSimulation] = useState('electron-clouding');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Sync state with native fullscreen changes (e.g. Esc or F11 key)
@@ -62,6 +63,7 @@ function App() {
     { id: 'gradient-descent', title: 'Gradient Descent', icon: '📉', tag: 'Optimization' },
     { id: 'monty-hall', title: 'Monty Hall Problem', icon: '🚪', tag: 'Probability' },
     { id: 'projectile-motion', title: 'Projectile Motion', icon: '🎯', tag: 'Physics' },
+    { id: 'electron-clouding', title: 'Electron Clouding', icon: '⚛️', tag: 'Quantum Mechanics' },
   ];
 
   return (
@@ -130,6 +132,7 @@ function App() {
         {activeSimulation === 'gradient-descent' && <GradientDescent />}
         {activeSimulation === 'monty-hall' && <MontyHall />}
         {activeSimulation === 'projectile-motion' && <ProjectileMotion />}
+        {activeSimulation === 'electron-clouding' && <ElectronClouding />}
       </main>
 
       {/* Floating Minimise Button when in Fullscreen Mode */}
