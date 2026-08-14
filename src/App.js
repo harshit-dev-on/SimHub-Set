@@ -18,7 +18,10 @@ function App() {
       <header className="simhub-top-nav">
         <div className="simhub-brand">
           <div className="brand-badge-pill">
-            <span className="pulse-indicator" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M 3 8 Q 12 20 21 8" stroke="#66BB6A" strokeWidth="2.8" strokeLinecap="round" />
+              <circle cx="12" cy="14.5" r="3.2" fill="#EE7258" stroke="#FFFFFF" strokeWidth="1.2" />
+            </svg>
             <span className="brand-logo-text">SimHub</span>
           </div>
           <span className="brand-tagline">Visualizing Complex Concepts for Students</span>
