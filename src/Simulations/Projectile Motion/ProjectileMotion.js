@@ -171,10 +171,13 @@ export default function ProjectileMotion() {
     }
   }, [initialSpeed, angleDeg, cannonPos.x, cannonPos.y, g, resetSimulation, isRunning, simTime]);
 
-  // Fire / Launch Action
-  const handleFire = () => {
-    if (flightState.isLanded || simTime > 0) {
-      // Save current trail to ghost trails for comparison
+  // Play / Pause / Re-Fire Toggle Action
+  const handlePlayPause = () => {
+    if (isRunning) {
+      // Pause current active flight
+      setIsRunning(false);
+    } else if (flightState.isLanded) {
+      // Re-Fire after landing
       if (currentTrail.length > 1) {
         setGhostTrails((prev) => [
           ...prev.slice(-4), // keep last 4 ghosts
@@ -192,7 +195,11 @@ export default function ProjectileMotion() {
         setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
       }
       setIsRunning(true);
+    } else if (simTime > 0) {
+      // Resume paused flight
+      setIsRunning(true);
     } else {
+      // Initial Launch
       if (showTarget) {
         setTargetScore((prev) => ({ ...prev, attempts: prev.attempts + 1 }));
       }
@@ -1260,10 +1267,16 @@ export default function ProjectileMotion() {
               <button
                 type="button"
                 className={`action-btn-primary ${isRunning ? 'btn-pause' : 'btn-play'}`}
-                onClick={handleFire}
+                onClick={handlePlayPause}
                 style={{ padding: '6px 14px', fontSize: '12px' }}
               >
-                {isRunning ? '⏸ Pause' : flightState.isLanded ? '🚀 Re-Fire' : '🔥 Fire!'}
+                {isRunning
+                  ? '⏸ Pause'
+                  : flightState.isLanded
+                  ? '🚀 Re-Fire'
+                  : simTime > 0
+                  ? '▶ Resume'
+                  : '🔥 Fire!'}
               </button>
               <button
                 type="button"
