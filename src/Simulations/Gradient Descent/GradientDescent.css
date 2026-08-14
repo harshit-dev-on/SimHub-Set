@@ -1050,6 +1050,372 @@
   cursor: not-allowed;
 }
 
+/* --------------------------------------------------------------------------
+   Student Guidance & Quests Strip
+   -------------------------------------------------------------------------- */
+.student-guide-header-btn {
+  background: #FFFDF5;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  color: #1B1C20;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.student-guide-header-btn:hover {
+  background: #F7D25A;
+  border-color: #E5BE38;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(247, 210, 90, 0.35);
+}
+
+.guided-quests-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
+}
+
+.quest-strip-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  white-space: nowrap;
+}
+
+.quest-buttons-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quest-pill-btn {
+  background: #FFFDF5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  color: #2D2B24;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.quest-pill-btn:hover {
+  background: #FAF2D8;
+  border-color: #EE7258;
+  color: #111;
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   Loss Sparkline Chart
+   -------------------------------------------------------------------------- */
+.loss-sparkline-card {
+  background: #FFFDF5;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sparkline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sparkline-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1B1C20;
+}
+
+.sparkline-sub {
+  font-size: 11px;
+  color: #888;
+  margin-left: 6px;
+}
+
+.current-loss-badge {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: rgba(238, 114, 88, 0.12);
+  color: #D84315;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.sparkline-svg-wrapper {
+  width: 100%;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Student Guide Modal
+   -------------------------------------------------------------------------- */
+.student-guide-modal-box {
+  background: #FFFDF5;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 24px 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.guide-tabs-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.guide-tab-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid transparent;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.guide-tab-btn.active {
+  background: #1B1C20;
+  color: #FFFFFF;
+}
+
+.guide-tab-btn:hover:not(.active) {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111;
+}
+
+.guide-tab-content-pane {
+  background: #FAF6E8;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pane-card-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1B1C20;
+  margin: 0;
+}
+
+.pane-card-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #7B7564;
+  margin: 0;
+}
+
+.pane-card-body p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #333;
+  margin-top: 6px;
+}
+
+.guide-analogy-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.guide-bullet-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.step-num {
+  background: #1B1C20;
+  color: #FFF;
+  font-weight: 800;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.step-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.green-badge {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.red-badge {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.guide-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.guide-pill-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guide-pill-card .card-emoji {
+  font-size: 20px;
+}
+
+.guide-pill-card strong {
+  font-size: 12px;
+}
+
+.guide-pill-card p {
+  font-size: 11px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.guide-modal-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.footer-quest-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #666;
+}
+
+.guide-quest-btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guide-quest-btn {
+  background: #F7D25A;
+  border: 1px solid #E0A800;
+  color: #2D2B24;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guide-quest-btn:hover {
+  background: #F5C72E;
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   Student Keyboard Shortcuts Footer Bar
+   -------------------------------------------------------------------------- */
+.gd-student-footer-bar {
+  margin-top: 16px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.keyboard-shortcut-hints {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 12px;
+  color: #555;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+kbd {
+  background: #FFF;
+  border: 1px solid #CCC;
+  border-bottom: 2px solid #BBB;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #333;
+}
+
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

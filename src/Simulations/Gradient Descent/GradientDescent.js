@@ -3,6 +3,8 @@ import './GradientDescent.css';
 import { LOSS_FUNCTIONS, OPTIMIZERS, findFunctionMinima } from './simulationMath';
 import { compileMathExpression } from './mathParser';
 import CustomFunctionModal from './CustomFunctionModal';
+import StudentGuideModal from './StudentGuideModal';
+import LossCurveChart from './LossCurveChart';
 import PogoRider from './PogoRider';
 
 export default function GradientDescent() {
@@ -38,6 +40,7 @@ export default function GradientDescent() {
 
   const [selectedFuncKey, setSelectedFuncKey] = useState('quadratic');
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [selectedOptimizer, setSelectedOptimizer] = useState('sgd');
   const [learningRate, setLearningRate] = useState(0.15);
   const [currentX, setCurrentX] = useState(3.2);
@@ -407,6 +410,43 @@ export default function GradientDescent() {
     };
   }, [isRunning, executeJumpStep]);
 
+  const handleLaunchQuest = useCallback((funcId, startX, lr, optId) => {
+    setSelectedFuncKey(funcId);
+    setSelectedOptimizer(optId);
+    setLearningRate(lr);
+    resetSimulation(startX);
+    setStatusMessage(`🎯 Quest Loaded! Press '▶ Start Descent' to observe.`);
+  }, [resetSimulation]);
+
+  // Keyboard Shortcuts for seamless student interactivity
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsRunning((prev) => !prev);
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyN') {
+        e.preventDefault();
+        if (!isRunningRef.current && !isJumpingRef.current) {
+          executeJumpStep();
+        }
+      } else if (e.code === 'KeyR') {
+        e.preventDefault();
+        resetSimulation();
+      } else if (e.code === 'KeyM') {
+        e.preventDefault();
+        setVisualMode((prev) => (prev === 'pogo' ? 'math' : 'pogo'));
+      } else if (e.code === 'KeyG') {
+        e.preventDefault();
+        setIsGuideOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [executeJumpStep, resetSimulation]);
+
   // Display coordinates (interpolated during projectile flight, or current state when static)
   const displayX = renderPos.isJumping ? renderPos.x : currentX;
   const displayY = renderPos.isJumping ? renderPos.y : safeFn(currentX);
@@ -538,6 +578,14 @@ export default function GradientDescent() {
           </span>
           <span className="gd-badge-status">{statusMessage}</span>
 
+          <button
+            type="button"
+            className="student-guide-header-btn"
+            onClick={() => setIsGuideOpen(true)}
+          >
+            🎓 Concept Guide
+          </button>
+
           {/* Mode Switcher Toggle: Pogo Hills vs Math Studio */}
           <div className="visual-mode-toggle-pill">
             <button
@@ -562,6 +610,47 @@ export default function GradientDescent() {
             ? 'Help the Pogo Rider bounce down the green hills to find the lowest valley (global minimum)!'
             : 'Watch parameters iteratively slide down the loss slope ∇f(w) to minimize cost.'}
         </p>
+
+        {/* Guided Student Quests Strip */}
+        <div className="guided-quests-strip">
+          <div className="quest-strip-label">
+            <span>🎯 Student Quests:</span>
+          </div>
+          <div className="quest-buttons-list">
+            <button
+              type="button"
+              className="quest-pill-btn"
+              onClick={() => handleLaunchQuest('quadratic', 3.2, 0.15, 'sgd')}
+              title="Smooth convex bowl: standard convergence"
+            >
+              ⛳ Standard Descent
+            </button>
+            <button
+              type="button"
+              className="quest-pill-btn"
+              onClick={() => handleLaunchQuest('doubleWell', 1.8, 0.08, 'momentum')}
+              title="Double well: use momentum to cross local hill"
+            >
+              🕳️ Escape Local Trap
+            </button>
+            <button
+              type="button"
+              className="quest-pill-btn"
+              onClick={() => handleLaunchQuest('quadratic', 3.2, 0.55, 'sgd')}
+              title="High learning rate: see parameter oscillate wildly"
+            >
+              🚀 Overshoot & Divergence
+            </button>
+            <button
+              type="button"
+              className="quest-pill-btn"
+              onClick={() => handleLaunchQuest('plateau', 3.5, 0.25, 'momentum')}
+              title="Flat plateau: speed up crawling with momentum"
+            >
+              ⚡ Momentum Plateau Run
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main Simulation Layout: 2-Column Bento */}
@@ -1084,14 +1173,40 @@ export default function GradientDescent() {
               </p>
             </div>
           </div>
+
+          {/* Loss Convergence Real-Time Curve */}
+          <LossCurveChart
+            history={history}
+            initialLoss={safeFn(initialX)}
+            currentLoss={currentY}
+          />
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Helper Footer */}
+      <footer className="gd-student-footer-bar">
+        <div className="keyboard-shortcut-hints">
+          <span className="shortcut-item"><kbd>Space</kbd> Play/Pause</span>
+          <span className="shortcut-item"><kbd>→</kbd> Step Once</span>
+          <span className="shortcut-item"><kbd>R</kbd> Reset</span>
+          <span className="shortcut-item"><kbd>M</kbd> Toggle Mode</span>
+          <span className="shortcut-item"><kbd>G</kbd> Concept Guide</span>
+          <span className="shortcut-item">🖱️ Drag rider anywhere on the hills!</span>
+        </div>
+      </footer>
 
       {/* Custom Math Function Modal Builder */}
       <CustomFunctionModal
         isOpen={isCustomModalOpen}
         onClose={() => setIsCustomModalOpen(false)}
         onApplyCustomFunction={handleApplyCustomFunction}
+      />
+
+      {/* Student Guided Learning Modal */}
+      <StudentGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onLaunchQuest={handleLaunchQuest}
       />
     </div>
   );
