@@ -321,35 +321,213 @@
 }
 
 /* --------------------------------------------------------------------------
-   Responsive
+   Mobile & Responsive YouTube-Style Layout
+   Top = Fixed Unscrollable Video/Stage Player
+   Bottom = Scrollable Comments/Analysis Pane
    -------------------------------------------------------------------------- */
-@media (max-width: 1080px) {
-  .sim-split-studio-layout {
-    flex-direction: column;
-    height: auto;
-    min-height: auto;
+@media (max-width: 1024px) {
+  html, body {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
   }
-  .unscrollable-workbench-pane {
-    overflow: visible;
-    height: auto;
-  }
-  .scrollable-analysis-pane {
-    height: 600px;
-  }
-}
 
-@media (max-width: 900px) {
-  .simhub-top-nav {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 20px;
+  .simhub-root {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
+
+  /* Compact single-row top navigation with horizontally scrollable pills */
+  .simhub-top-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    gap: 6px;
+    height: 42px;
+    box-sizing: border-box;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
   .brand-tagline {
     display: none;
   }
+
+  .simhub-brand {
+    flex-shrink: 0;
+  }
+
+  .brand-badge-pill {
+    padding: 3px 7px;
+  }
+
+  .brand-logo-text {
+    font-size: 12px;
+  }
+
+  .nav-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .sim-pills-container {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    padding: 2px;
+    scrollbar-width: none;
+  }
+
+  .sim-pills-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sim-pill-btn {
+    padding: 3px 7px;
+    font-size: 10.5px;
+    flex-shrink: 0;
+  }
+
+  .fullscreen-toggle-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Main Stage Viewport */
   .simhub-main-stage {
-    padding: 16px 12px;
+    padding: 4px 6px 6px 6px;
+    height: calc(100dvh - 42px);
+    max-height: calc(100dvh - 42px);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .simhub-main-stage.is-home-stage {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 10px 40px;
+  }
+
+  /* Split Studio Layout: YouTube Vertical Stack */
+  .sim-split-studio-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  /* TOP: Fixed Unscrollable Stage / Workbench (Like YouTube Video Player) */
+  .unscrollable-workbench-pane {
+    flex: 0 0 52%;
+    max-height: 54%;
+    min-height: 220px;
+    height: 52%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 6px;
+    touch-action: none; /* Enables smooth 2D/3D touch gestures on canvas without page scrolling */
+  }
+
+  .workbench-top-simulation {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workbench-bottom-controls {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    border-radius: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    gap: 4px;
+  }
+
+  /* BOTTOM: Scrollable Analysis & Concepts Pane (Like YouTube Comments / Related) */
+  .scrollable-analysis-pane {
+    flex: 1;
+    min-height: 0;
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+    border-left: none;
+    border-top: 1.5px solid rgba(0, 0, 0, 0.08);
+    padding: 4px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .analysis-tabs-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(245, 244, 238, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 2px 2px 5px 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .analysis-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .analysis-scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 4px 28px 4px;
+    gap: 8px;
+    touch-action: pan-y;
+  }
+}
+
+/* Mobile Landscape Tweaks */
+@media (max-height: 520px) and (orientation: landscape) {
+  .simhub-top-nav {
+    height: 36px;
+    padding: 2px 8px;
+  }
+
+  .simhub-main-stage {
+    height: calc(100dvh - 36px);
+    max-height: calc(100dvh - 36px);
+    padding: 2px 6px 4px 6px;
+  }
+
+  .unscrollable-workbench-pane {
+    flex: 0 0 58%;
+    max-height: 60%;
+    min-height: 180px;
+    height: 58%;
+  }
+
+  .workbench-bottom-controls {
+    padding: 3px 6px;
   }
 }
 

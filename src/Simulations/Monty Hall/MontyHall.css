@@ -1498,3 +1498,37 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* --------------------------------------------------------------------------
+   Mobile & Touch Responsive Overrides
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .monty-header-badge-row {
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .doors-stage-wrapper {
+    gap: 8px;
+    padding: 6px 4px;
+  }
+
+  .door-perspective-card {
+    max-width: 100px;
+    height: 140px;
+  }
+
+  .host-commentary-banner {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .host-speech-text {
+    font-size: 11px;
+  }
+
+  .kinematics-mini-svg {
+    height: 100px;
+  }
+}
+

@@ -1599,11 +1599,53 @@ kbd {
 }
 
 /* --------------------------------------------------------------------------
-   Responsive
+   Mobile & Touch Responsive Overrides
    -------------------------------------------------------------------------- */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
+  .gd-visualizer-card {
+    padding: 6px 8px;
+    gap: 4px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .card-header-bar {
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .floating-loss-badge {
+    top: 6px;
+    right: 6px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+  }
+
+  .floating-viewport-hud {
+    bottom: 6px;
+    right: 6px;
+    gap: 3px;
+  }
+
+  .hud-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
   .controls-row-sliders {
     grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .gd-stepper-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .kinematics-mini-svg {
+    height: 100px;
   }
 }
 

@@ -749,3 +749,60 @@
   color: #64748B;
   line-height: 1.3;
 }
+
+/* --------------------------------------------------------------------------
+   Mobile & Touch Responsive Overrides
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .projectile-stage-header {
+    padding: 4px 8px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .stage-badge-group {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .stage-overlay-toggles {
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .toggle-chip {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .floating-telemetry-hud {
+    padding: 4px 8px;
+    font-size: 10.5px;
+    bottom: 6px;
+    left: 6px;
+    gap: 8px;
+  }
+
+  .floating-viewport-hud {
+    bottom: 6px;
+    right: 6px;
+    gap: 3px;
+  }
+
+  .hud-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
+  .hud-btn-reset {
+    width: auto;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .kinematics-mini-svg {
+    height: 100px;
+  }
+}
