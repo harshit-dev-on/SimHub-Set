@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './GradientDescent.css';
 import { LOSS_FUNCTIONS, OPTIMIZERS } from './simulationMath';
 import { compileMathExpression } from './mathParser';
@@ -203,9 +203,13 @@ export default function GradientDescent() {
     };
   }, [isRunning, playbackSpeed, stepDescent]);
 
-  // Current mathematical metrics safely evaluated
-  const safeFn = currentFunc.fn || ((x) => x * x);
-  const safeDeriv = currentFunc.derivative || ((x) => 2 * x);
+  // Dragging State and Refs
+  const [isDragging, setIsDragging] = useState(false);
+  const svgRef = useRef(null);
+
+  // Current mathematical metrics safely evaluated with useMemo
+  const safeFn = useMemo(() => currentFunc.fn || ((x) => x * x), [currentFunc]);
+  const safeDeriv = useMemo(() => currentFunc.derivative || ((x) => 2 * x), [currentFunc]);
 
   const currentY = safeFn(currentX);
   const currentGrad = safeDeriv(currentX);
@@ -233,6 +237,71 @@ export default function GradientDescent() {
     return padding.top + plotHeight - ((clampedY - currentFunc.yMin) / ySpan) * plotHeight;
   };
 
+  // Convert screen mouse/touch pointer to exact domain X
+  const getDomainXFromPointer = useCallback((clientX) => {
+    if (!svgRef.current) return null;
+    const rect = svgRef.current.getBoundingClientRect();
+    if (!rect.width) return null;
+    const rawClickX = clientX - rect.left;
+    const svgX = (rawClickX / rect.width) * svgWidth;
+    const normX = (svgX - padding.left) / plotWidth;
+    const domainX = currentFunc.xMin + normX * xSpan;
+    return Math.min(Math.max(domainX, currentFunc.xMin), currentFunc.xMax);
+  }, [svgWidth, padding.left, plotWidth, currentFunc.xMin, currentFunc.xMax, xSpan]);
+
+  // Smooth position update during drag
+  const updatePositionWhileDragging = useCallback((domainX) => {
+    const roundedX = Number(domainX.toFixed(3));
+    setCurrentX(roundedX);
+    setInitialX(roundedX);
+    const yVal = safeFn(roundedX);
+    const gradVal = safeDeriv(roundedX);
+    setHistory([{
+      step: 0,
+      x: roundedX,
+      y: yVal,
+      grad: gradVal,
+      stepSize: 0,
+    }]);
+    setOptimizerState({});
+    setStatusMessage(`Placed at w = ${roundedX.toFixed(2)} (Slope: ${gradVal.toFixed(2)})`);
+  }, [safeFn, safeDeriv]);
+
+  // Pointer Event Handlers for continuous butter-smooth dragging
+  const handlePointerDown = (e) => {
+    // Only drag on left-click or touch
+    if (e.button !== undefined && e.button !== 0) return;
+    if (isRunning) setIsRunning(false);
+    setIsDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    const domainX = getDomainXFromPointer(e.clientX);
+    if (domainX !== null) {
+      updatePositionWhileDragging(domainX);
+    }
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+    const domainX = getDomainXFromPointer(e.clientX);
+    if (domainX !== null) {
+      updatePositionWhileDragging(domainX);
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const domainX = getDomainXFromPointer(e.clientX);
+    if (domainX !== null) {
+      updatePositionWhileDragging(domainX);
+    }
+  };
+
   // Generate SVG path for loss curve
   const curvePoints = [];
   const resolution = 150;
@@ -256,18 +325,6 @@ export default function GradientDescent() {
   const tanY1 = currentY - (isNaN(currentGrad) ? 0 : currentGrad) * tangentSpan;
   const tanX2 = currentX + tangentSpan;
   const tanY2 = currentY + (isNaN(currentGrad) ? 0 : currentGrad) * tangentSpan;
-
-  // Handle click on canvas to set starting point
-  const handleSvgClick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const normX = (clickX - padding.left) / plotWidth;
-    const domainX = currentFunc.xMin + normX * (currentFunc.xMax - currentFunc.xMin);
-    
-    if (domainX >= currentFunc.xMin && domainX <= currentFunc.xMax) {
-      resetSimulation(Number(domainX.toFixed(2)));
-    }
-  };
 
   return (
     <div className="gd-simulation-container">
@@ -325,9 +382,14 @@ export default function GradientDescent() {
           {/* SVG Loss Curve / Green Hills Plot */}
           <div className={`svg-plot-wrapper ${visualMode === 'pogo' ? 'pogo-theme-wrapper' : ''}`}>
             <svg
-              className="loss-landscape-svg"
+              ref={svgRef}
+              className={`loss-landscape-svg ${isDragging ? 'is-dragging-active' : ''}`}
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              onClick={handleSvgClick}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              style={{ touchAction: 'none' }}
             >
               <defs>
                 <pattern id="gdGrid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -495,38 +557,50 @@ export default function GradientDescent() {
               {/* Pogo Stick Man OR Animated Glow Ball */}
               {visualMode === 'pogo' ? (
                 <g
-                  className="pogo-rider-anchor"
+                  className={`pogo-rider-anchor ${isDragging ? 'is-dragging' : ''}`}
                   style={{
                     transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
-                    transition: isRunning ? 'none' : 'transform 0.15s ease',
+                    transition: (isRunning || isDragging) ? 'none' : 'transform 0.15s ease',
                   }}
                 >
+                  {/* Subtle ground target circle when dragging */}
+                  {isDragging && (
+                    <ellipse cx="0" cy="0" rx="14" ry="4" fill="rgba(0,0,0,0.25)" />
+                  )}
                   <PogoRider
                     slope={currentGrad}
-                    isBouncing={isRunning}
+                    isBouncing={isRunning || isDragging}
                     direction={currentGrad > 0 ? -1 : 1}
-                    scale={0.9}
+                    scale={isDragging ? 1.05 : 0.9}
                     showSpeechBubble={true}
                     speechText={
-                      Math.abs(currentGrad) < 0.005
+                      isDragging
+                        ? 'Wheee! 🎯'
+                        : Math.abs(currentGrad) < 0.005
                         ? 'Valley reached! 🏁'
                         : isRunning
                         ? 'Boing! 💨'
                         : Math.abs(currentGrad) > 3
                         ? 'Steep hill! ⚠️'
-                        : 'Ready to bounce!'
+                        : 'Drag me!'
                     }
                   />
                 </g>
               ) : (
                 <g
-                  className="animated-gradient-ball"
+                  className={`animated-gradient-ball ${isDragging ? 'is-dragging' : ''}`}
                   style={{
                     transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
-                    transition: isRunning ? 'none' : 'transform 0.15s ease',
+                    transition: (isRunning || isDragging) ? 'none' : 'transform 0.15s ease',
                   }}
                 >
-                  <circle r="14" fill="#EE7258" opacity="0.25" className="ball-pulsar" />
+                  {/* Outer Drag Target Halo */}
+                  <circle
+                    r={isDragging ? '20' : '14'}
+                    fill="#EE7258"
+                    opacity={isDragging ? '0.45' : '0.25'}
+                    className="ball-pulsar"
+                  />
                   <circle r="8" fill="url(#ballGlow)" stroke="#FFFFFF" strokeWidth="2.5" />
                 </g>
               )}
