@@ -71,6 +71,13 @@ function ElectronClouding() {
     [transitionNi, transitionNf]
   );
 
+  // Mathematical Wavefunction Formula String for Floating Pill
+  const wavefunctionFormula = useMemo(() => {
+    const orbType = l === 0 ? 's' : l === 1 ? 'p' : l === 2 ? 'd' : 'f';
+    const sub = `${n}${orbType}${m !== 0 ? (m > 0 ? `+${m}` : `${m}`) : ''}`;
+    return `ψ_${sub}(r, θ, φ) = R_${n}${l}(r) · Y_${l}${m}(θ, φ)`;
+  }, [n, l, m]);
+
   // Synchronize (l, m) bounds when n changes
   const handleSetN = (newN) => {
     const clampedN = Math.max(1, Math.min(4, newN));
@@ -99,6 +106,33 @@ function ElectronClouding() {
     setM(preset.m);
   };
 
+  // Zoom Helpers
+  const handleZoom = (factor) => {
+    cameraDistanceRef.current = Math.max(6, Math.min(220, cameraDistanceRef.current * factor));
+    if (cameraRef.current) {
+      const dist = cameraDistanceRef.current;
+      const { theta, phi } = sphericalRef.current;
+      cameraRef.current.position.x = dist * Math.sin(phi) * Math.cos(theta);
+      cameraRef.current.position.y = dist * Math.cos(phi);
+      cameraRef.current.position.z = dist * Math.sin(phi) * Math.sin(theta);
+      cameraRef.current.lookAt(0, 0, 0);
+    }
+  };
+
+  // Reset 3D Camera to default framing
+  const resetCameraView = useCallback(() => {
+    sphericalRef.current = { theta: Math.PI / 4, phi: Math.PI / 3 };
+    cameraDistanceRef.current = Math.max(24, n * n * 6.0);
+    if (cameraRef.current) {
+      const dist = cameraDistanceRef.current;
+      const { theta, phi } = sphericalRef.current;
+      cameraRef.current.position.x = dist * Math.sin(phi) * Math.cos(theta);
+      cameraRef.current.position.y = dist * Math.cos(phi);
+      cameraRef.current.position.z = dist * Math.sin(phi) * Math.sin(theta);
+      cameraRef.current.lookAt(0, 0, 0);
+    }
+  }, [n]);
+
   // --------------------------------------------------------------------------
   // Three.js Scene Setup & Lifecycle
   // --------------------------------------------------------------------------
@@ -116,7 +150,7 @@ function ElectronClouding() {
     // Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     cameraRef.current = camera;
-    cameraDistanceRef.current = Math.max(26, n * n * 6.5);
+    cameraDistanceRef.current = Math.max(24, n * n * 6.0);
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({
@@ -124,7 +158,7 @@ function ElectronClouding() {
       alpha: true,
       powerPreference: 'high-performance',
     });
-    renderer.setSize(width, height);
+    renderer.setSize(width, height, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer;
     container.innerHTML = '';
@@ -567,20 +601,6 @@ function ElectronClouding() {
     }
   }, [n, l, m, viewMode, pointCount, sliceAxis, showAxes, showNucleus]);
 
-  // Reset 3D Camera to default framing
-  const resetCameraView = useCallback(() => {
-    sphericalRef.current = { theta: Math.PI / 4, phi: Math.PI / 3 };
-    cameraDistanceRef.current = Math.max(26, n * n * 6.5);
-    if (cameraRef.current) {
-      const dist = cameraDistanceRef.current;
-      const { theta, phi } = sphericalRef.current;
-      cameraRef.current.position.x = dist * Math.sin(phi) * Math.cos(theta);
-      cameraRef.current.position.y = dist * Math.cos(phi);
-      cameraRef.current.position.z = dist * Math.sin(phi) * Math.sin(theta);
-      cameraRef.current.lookAt(0, 0, 0);
-    }
-  }, [n]);
-
   // --------------------------------------------------------------------------
   // 2D Wavefunction & Probability Graphs Generators
   // --------------------------------------------------------------------------
@@ -624,264 +644,348 @@ function ElectronClouding() {
   }, [n, l, maxR]);
 
   return (
-    <div className="electron-studio-layout">
-      {/* Left Column: 3D Workbench & WebGL Stage */}
-      <div className="electron-workbench-pane">
-        <div className="electron-stage-card">
-          {/* Header Badges & View Mode Selector */}
-          <div className="electron-stage-header">
-            <div className="electron-badge-group">
-              <div className="orbital-badge-pill">
-                <span>⚛️</span>
-                <span className="orbital-name-tag">{currentPreset.label}</span>
-                <span>({currentPreset.name})</span>
+    <div className="sim-split-studio-layout">
+      {/* Left Column: Unscrollable Workbench (3D Stage + Single-Row Toolbar) */}
+      <div className="unscrollable-workbench-pane">
+        <div className="workbench-top-simulation">
+          <div className="electron-stage-card">
+            {/* Header / Badges Row */}
+            <div className="electron-stage-header">
+              <div className="stage-badge-group">
+                {/* Visual Mode Selector Pills */}
+                <div className="visual-mode-toggle-pill">
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${viewMode === 'cloud' ? 'active' : ''}`}
+                    onClick={() => setViewMode('cloud')}
+                    title="3D Monte Carlo Quantum Probability Density Cloud"
+                  >
+                    ☁️ Cloud
+                  </button>
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${viewMode === 'lobes' ? 'active' : ''}`}
+                    onClick={() => setViewMode('lobes')}
+                    title="3D Boundary Isosurface Lobes (90% Probability Enclosure)"
+                  >
+                    🔮 Lobes
+                  </button>
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${viewMode === 'slice' ? 'active' : ''}`}
+                    onClick={() => setViewMode('slice')}
+                    title="2D Slicing Plane Heatmap and Probability Contours"
+                  >
+                    📐 Slice
+                  </button>
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${viewMode === 'bohr' ? 'active' : ''}`}
+                    onClick={() => setViewMode('bohr')}
+                    title="Bohr Planetary Orbit vs Quantum Probability Cloud"
+                  >
+                    🪐 Bohr
+                  </button>
+                </div>
+
+                <div className="stage-status-live">
+                  <span className="status-dot in-flight" />
+                  <span>
+                    <strong>{currentPreset.label}</strong> ({currentPreset.name})
+                  </span>
+                </div>
+              </div>
+
+              {/* View Overlays */}
+              <div className="stage-overlay-toggles">
+                <button
+                  type="button"
+                  className={`toggle-chip ${autoRotate ? 'active' : ''}`}
+                  onClick={() => setAutoRotate(!autoRotate)}
+                  title="Toggle automatic 3D camera rotation"
+                >
+                  🔄 {autoRotate ? 'Auto' : 'Paused'}
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-chip ${showAxes ? 'active' : ''}`}
+                  onClick={() => setShowAxes(!showAxes)}
+                  title="Toggle 3D coordinate axes in Bohr radii a₀"
+                >
+                  📏 Axes: {showAxes ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-chip ${showNucleus ? 'active' : ''}`}
+                  onClick={() => setShowNucleus(!showNucleus)}
+                  title="Toggle central proton nucleus"
+                >
+                  🔴 Nucleus: {showNucleus ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  type="button"
+                  className="toggle-chip"
+                  onClick={resetCameraView}
+                  title="Reset 3D camera to default orientation"
+                >
+                  🎯 Reset
+                </button>
               </div>
             </div>
 
-            <div className="quantum-mode-pills">
-              <button
-                type="button"
-                className={`q-mode-btn ${viewMode === 'cloud' ? 'active' : ''}`}
-                onClick={() => setViewMode('cloud')}
-                title="3D Monte Carlo Quantum Probability Density Cloud"
-              >
-                ☁️ Cloud
-              </button>
-              <button
-                type="button"
-                className={`q-mode-btn ${viewMode === 'lobes' ? 'active' : ''}`}
-                onClick={() => setViewMode('lobes')}
-                title="3D Boundary Isosurface Lobes (90% Probability Enclosure)"
-              >
-                🔮 Lobes
-              </button>
-              <button
-                type="button"
-                className={`q-mode-btn ${viewMode === 'slice' ? 'active' : ''}`}
-                onClick={() => setViewMode('slice')}
-                title="2D Slicing Plane Heatmap and Probability Contours"
-              >
-                📐 Slice
-              </button>
-              <button
-                type="button"
-                className={`q-mode-btn ${viewMode === 'bohr' ? 'active' : ''}`}
-                onClick={() => setViewMode('bohr')}
-                title="Bohr Planetary Orbit vs Quantum Probability Cloud"
-              >
-                🪐 Bohr vs Quantum
-              </button>
+            {/* 3D WebGL Canvas Viewport */}
+            <div ref={mountRef} className="electron-3d-viewport">
+              {/* Floating Mathematical Wavefunction Formula Badge */}
+              <div className="floating-math-formula-pill">
+                <span className="fn-header">Quantum Wavefunction</span>
+                <span className="fn-body">{wavefunctionFormula}</span>
+              </div>
+
+              {/* Floating Pan & Zoom HUD */}
+              <div className="floating-viewport-hud">
+                <button
+                  type="button"
+                  className="hud-btn"
+                  onClick={() => handleZoom(0.85)}
+                  title="Zoom In (or scroll wheel up)"
+                >
+                  ➕
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn"
+                  onClick={() => handleZoom(1.18)}
+                  title="Zoom Out (or scroll wheel down)"
+                >
+                  ➖
+                </button>
+                <button
+                  type="button"
+                  className="hud-btn hud-btn-reset"
+                  onClick={resetCameraView}
+                  title="Reset 3D camera framing"
+                >
+                  🎯 Fit View
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* 3D WebGL Canvas Viewport */}
-          <div ref={mountRef} className="electron-3d-viewport" />
-
-          {/* Floating 3D Navigation HUD */}
-          <div className="floating-3d-hud">
-            <button
-              type="button"
-              className={`hud-3d-btn ${autoRotate ? 'active' : ''}`}
-              onClick={() => setAutoRotate(!autoRotate)}
-              title="Toggle automatic camera rotation"
-            >
-              🔄 {autoRotate ? 'Rotating' : 'Rotate: Off'}
-            </button>
-            <button
-              type="button"
-              className={`hud-3d-btn ${showAxes ? 'active' : ''}`}
-              onClick={() => setShowAxes(!showAxes)}
-              title="Toggle 3D coordinate axes & grid in Bohr radii a₀"
-            >
-              📏 Axes
-            </button>
-            <button
-              type="button"
-              className={`hud-3d-btn ${showNucleus ? 'active' : ''}`}
-              onClick={() => setShowNucleus(!showNucleus)}
-              title="Toggle central proton nucleus"
-            >
-              🔴 Nucleus
-            </button>
-            <button
-              type="button"
-              className="hud-3d-btn"
-              onClick={resetCameraView}
-              title="Reset 3D camera to default orientation"
-            >
-              🎯 Reset View
-            </button>
           </div>
         </div>
 
-        {/* Single-Row Controls Toolbar */}
-        <div className="electron-bottom-controls">
-          {/* Quantum Number n (Principal) */}
-          <div className="control-item-group">
-            <span className="control-label" title="Principal Quantum Number n (Energy level)">
-              n (Level):
-            </span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetN(n - 1)}
-              disabled={n <= 1}
-            >
-              −
-            </button>
-            <span className="quantum-num-val">{n}</span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetN(n + 1)}
-              disabled={n >= 4}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Quantum Number l (Angular Momentum) */}
-          <div className="control-item-group">
-            <span className="control-label" title="Azimuthal Quantum Number l (Orbital shape)">
-              l ({l === 0 ? 's' : l === 1 ? 'p' : l === 2 ? 'd' : 'f'}):
-            </span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetL(l - 1)}
-              disabled={l <= 0}
-            >
-              −
-            </button>
-            <span className="quantum-num-val">{l}</span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetL(l + 1)}
-              disabled={l >= n - 1}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Quantum Number m_l (Magnetic) */}
-          <div className="control-item-group">
-            <span className="control-label" title="Magnetic Quantum Number m_l (Spatial orientation)">
-              mₗ:
-            </span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetM(m - 1)}
-              disabled={m <= -l}
-            >
-              −
-            </button>
-            <span className="quantum-num-val">{m}</span>
-            <button
-              type="button"
-              className="quantum-num-btn"
-              onClick={() => handleSetM(m + 1)}
-              disabled={m >= l}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Mode-Specific Sub-Controls */}
-          {viewMode === 'cloud' && (
-            <div className="control-item-group">
-              <span className="control-label">Density:</span>
-              <input
-                type="range"
-                min="6000"
-                max="40000"
-                step="2000"
-                value={pointCount}
-                onChange={(e) => setPointCount(parseInt(e.target.value, 10))}
-                style={{ width: '80px' }}
-              />
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748B' }}>
-                {(pointCount / 1000).toFixed(0)}k
+        {/* Bottom Parameters & Controls Area (Single-Row Toolbar) */}
+        <div className="workbench-bottom-controls">
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Principal Quantum Number n */}
+            <div className="quantum-stepper-item">
+              <span className="quantum-stepper-label" title="Principal Quantum Number n (Energy level 1..4)">
+                Level n:
               </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetN(n - 1)}
+                disabled={n <= 1}
+              >
+                −
+              </button>
+              <span className="quantum-stepper-val" style={{ color: '#2563EB' }}>
+                {n}
+              </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetN(n + 1)}
+                disabled={n >= 4}
+              >
+                +
+              </button>
             </div>
-          )}
 
-          {viewMode === 'slice' && (
-            <div className="control-item-group">
-              <span className="control-label">Plane:</span>
-              {['xy', 'xz', 'yz'].map((axis) => (
-                <button
-                  key={axis}
-                  type="button"
-                  onClick={() => setSliceAxis(axis)}
-                  style={{
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    border: '1px solid #CBD5E1',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    background: sliceAxis === axis ? '#1E293B' : '#F1F5F9',
-                    color: sliceAxis === axis ? '#FFFFFF' : '#334155',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {axis.toUpperCase()}
-                </button>
-              ))}
+            <div style={{ width: '1.5px', height: '22px', background: 'rgba(0,0,0,0.08)' }} />
+
+            {/* Angular Quantum Number l */}
+            <div className="quantum-stepper-item">
+              <span className="quantum-stepper-label" title="Azimuthal Quantum Number l (Orbital shape s, p, d, f)">
+                Orbital l ({l === 0 ? 's' : l === 1 ? 'p' : l === 2 ? 'd' : 'f'}):
+              </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetL(l - 1)}
+                disabled={l <= 0}
+              >
+                −
+              </button>
+              <span className="quantum-stepper-val" style={{ color: '#4F46E5' }}>
+                {l}
+              </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetL(l + 1)}
+                disabled={l >= n - 1}
+              >
+                +
+              </button>
             </div>
-          )}
+
+            <div style={{ width: '1.5px', height: '22px', background: 'rgba(0,0,0,0.08)' }} />
+
+            {/* Magnetic Quantum Number m_l */}
+            <div className="quantum-stepper-item">
+              <span className="quantum-stepper-label" title="Magnetic Quantum Number m_l (Spatial orientation)">
+                Orientation mₗ:
+              </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetM(m - 1)}
+                disabled={m <= -l}
+              >
+                −
+              </button>
+              <span className="quantum-stepper-val" style={{ color: '#9333EA' }}>
+                {m}
+              </span>
+              <button
+                type="button"
+                className="quantum-stepper-btn"
+                onClick={() => handleSetM(m + 1)}
+                disabled={m >= l}
+              >
+                +
+              </button>
+            </div>
+
+            <div style={{ width: '1.5px', height: '22px', background: 'rgba(0,0,0,0.08)' }} />
+
+            {/* Mode Specific Controls */}
+            {viewMode === 'cloud' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="quantum-stepper-label">Density:</span>
+                <input
+                  type="range"
+                  min="6000"
+                  max="40000"
+                  step="2000"
+                  value={pointCount}
+                  onChange={(e) => setPointCount(parseInt(e.target.value, 10))}
+                  style={{ width: '80px', margin: 0, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748B' }}>
+                  {(pointCount / 1000).toFixed(0)}k pts
+                </span>
+              </div>
+            )}
+
+            {viewMode === 'slice' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span className="quantum-stepper-label">Slice Plane:</span>
+                {['xy', 'xz', 'yz'].map((axis) => (
+                  <button
+                    key={axis}
+                    type="button"
+                    onClick={() => setSliceAxis(axis)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      background: sliceAxis === axis ? '#1E293B' : '#FFFFFF',
+                      color: sliceAxis === axis ? '#FFFFFF' : '#334155',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {axis.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ width: '1.5px', height: '22px', background: 'rgba(0,0,0,0.08)' }} />
+
+            {/* Quick Orbital Preset Picker Dropdown */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="quantum-stepper-label">Preset:</span>
+              <select
+                value={`${n}-${l}-${m}`}
+                onChange={(e) => {
+                  const [selN, selL, selM] = e.target.value.split('-').map((v) => parseInt(v, 10));
+                  setN(selN);
+                  setL(selL);
+                  setM(selM);
+                }}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(0,0,0,0.15)',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  background: '#FFFFFF',
+                  color: '#1E293B',
+                  cursor: 'pointer',
+                }}
+              >
+                {ORBITAL_PRESETS.map((p) => (
+                  <option key={`${p.n}-${p.l}-${p.m}`} value={`${p.n}-${p.l}-${p.m}`}>
+                    {p.label} - {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right Column: Scrollable Analysis Bento Pane */}
-      <div className="electron-analysis-pane">
-        {/* Top Tab Pills */}
-        <div className="electron-tabs-bar">
+      {/* Right Column: Scrollable Analysis & Concepts Pane */}
+      <div className="scrollable-analysis-pane">
+        {/* Analysis Tab Bar */}
+        <div className="analysis-tabs-bar">
           <button
             type="button"
-            className={`electron-tab-pill ${activeAnalysisTab === 'all' ? 'active' : ''}`}
+            className={`analysis-tab-pill ${activeAnalysisTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('all')}
           >
             📋 Overview
           </button>
           <button
             type="button"
-            className={`electron-tab-pill ${activeAnalysisTab === 'wavefunctions' ? 'active' : ''}`}
+            className={`analysis-tab-pill ${activeAnalysisTab === 'wavefunctions' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('wavefunctions')}
           >
             📊 Wavefunctions
           </button>
           <button
             type="button"
-            className={`electron-tab-pill ${activeAnalysisTab === 'nodes' ? 'active' : ''}`}
+            className={`analysis-tab-pill ${activeAnalysisTab === 'nodes' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('nodes')}
           >
             ⚛️ Nodal Structure
           </button>
           <button
             type="button"
-            className={`electron-tab-pill ${activeAnalysisTab === 'energy' ? 'active' : ''}`}
+            className={`analysis-tab-pill ${activeAnalysisTab === 'energy' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('energy')}
           >
-            ⚡ Energy & Spectroscopy
+            ⚡ Spectroscopy
           </button>
           <button
             type="button"
-            className={`electron-tab-pill ${activeAnalysisTab === 'bohr' ? 'active' : ''}`}
+            className={`analysis-tab-pill ${activeAnalysisTab === 'bohr' ? 'active' : ''}`}
             onClick={() => setActiveAnalysisTab('bohr')}
           >
-            🪐 Bohr vs Quantum
+            🪐 Bohr Model
           </button>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="electron-scrollable-body">
+        {/* Scrollable Bento Content Body */}
+        <div className="analysis-scrollable-content">
           {/* Quick Preset Orbitals Grid */}
-          <div className="electron-bento-card">
-            <div className="card-header-row">
-              <h4 className="card-title">Quick Preset Orbitals</h4>
-              <span className="card-pill-tag">n = 1..4 Catalog</span>
+          <div className="bento-subcard surface-yellow">
+            <div className="card-top-row">
+              <h4 className="card-title-text">Quick Preset Orbitals</h4>
+              <span className="doodle-badge">Catalog n=1..4</span>
             </div>
             <div className="presets-grid">
               {ORBITAL_PRESETS.map((p) => {
@@ -917,12 +1021,12 @@ function ElectronClouding() {
 
           {/* Radial Wavefunction Graph R(r) */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'wavefunctions') && (
-            <div className="electron-bento-card surface-blue">
-              <div className="card-header-row">
-                <h4 className="card-title">1. Radial Wavefunction R_{n}{l}(r)</h4>
-                <span className="card-pill-tag">Amplitude ψ(r)</span>
+            <div className="bento-subcard surface-blue">
+              <div className="card-top-row">
+                <h4 className="card-title-text">1. Radial Wavefunction R_{n}{l}(r)</h4>
+                <span className="doodle-badge">Amplitude ψ(r)</span>
               </div>
-              <svg viewBox="0 0 320 120" className="quantum-graph-svg">
+              <svg viewBox="0 0 320 120" className="kinematics-mini-svg">
                 <line x1="35" y1="20" x2="305" y2="20" stroke="#CBD5E1" strokeDasharray="3 3" />
                 <line x1="35" y1="65" x2="305" y2="65" stroke="#94A3B8" strokeWidth="1.5" />
                 <line x1="35" y1="110" x2="305" y2="110" stroke="#CBD5E1" strokeDasharray="3 3" />
@@ -970,12 +1074,12 @@ function ElectronClouding() {
 
           {/* Radial Probability Distribution Graph P(r) = r^2 R^2 */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'wavefunctions') && (
-            <div className="electron-bento-card surface-emerald">
-              <div className="card-header-row">
-                <h4 className="card-title">2. Radial Probability P(r) = r² |R(r)|²</h4>
-                <span className="card-pill-tag">Peak: r = {radialProbabilityPoints.peakR.toFixed(1)} a₀</span>
+            <div className="bento-subcard surface-emerald">
+              <div className="card-top-row">
+                <h4 className="card-title-text">2. Radial Probability P(r) = r² |R(r)|²</h4>
+                <span className="doodle-badge">Peak: r = {radialProbabilityPoints.peakR.toFixed(1)} a₀</span>
               </div>
-              <svg viewBox="0 0 320 120" className="quantum-graph-svg">
+              <svg viewBox="0 0 320 120" className="kinematics-mini-svg">
                 <line x1="35" y1="20" x2="305" y2="20" stroke="#CBD5E1" strokeDasharray="3 3" />
                 <line x1="35" y1="105" x2="305" y2="105" stroke="#94A3B8" strokeWidth="1.5" />
                 <line x1="35" y1="15" x2="35" y2="105" stroke="#94A3B8" strokeWidth="1.5" />
@@ -1027,12 +1131,12 @@ function ElectronClouding() {
 
           {/* Nodal Structure & Quantum Numbers */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'nodes') && (
-            <div className="electron-bento-card surface-purple">
-              <div className="card-header-row">
-                <h4 className="card-title">Quantum Nodal Surfaces</h4>
-                <span className="card-pill-tag">Total Nodes = {quantumInfo.totalNodes}</span>
+            <div className="bento-subcard surface-purple">
+              <div className="card-top-row">
+                <h4 className="card-title-text">Quantum Nodal Surfaces</h4>
+                <span className="doodle-badge">Total Nodes = {quantumInfo.totalNodes}</span>
               </div>
-              <div className="nodal-item-list">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div className="nodal-item-row">
                   <span className="nodal-bullet" style={{ background: '#38BDF8' }} />
                   <span>
@@ -1056,10 +1160,10 @@ function ElectronClouding() {
 
           {/* Energy & Spectroscopy Jump Simulator */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'energy') && (
-            <div className="electron-bento-card">
-              <div className="card-header-row">
-                <h4 className="card-title">Quantum Jump & Photon Emission</h4>
-                <span className="card-pill-tag">E_{n} = {quantumInfo.energyEV.toFixed(2)} eV</span>
+            <div className="bento-subcard">
+              <div className="card-top-row">
+                <h4 className="card-title-text">Quantum Jump & Photon Emission</h4>
+                <span className="doodle-badge">E_{n} = {quantumInfo.energyEV.toFixed(2)} eV</span>
               </div>
 
               {/* Selector Controls for Transitions */}
@@ -1069,7 +1173,7 @@ function ElectronClouding() {
                   <select
                     value={transitionNi}
                     onChange={(e) => setTransitionNi(parseInt(e.target.value, 10))}
-                    style={{ padding: '3px 6px', borderRadius: '5px', fontSize: '11px', fontWeight: '700' }}
+                    style={{ padding: '3px 6px', borderRadius: '5px', fontSize: '11px', fontWeight: '700', background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.15)' }}
                   >
                     {[1, 2, 3, 4].map((v) => (
                       <option key={v} value={v}>n={v}</option>
@@ -1084,7 +1188,7 @@ function ElectronClouding() {
                   <select
                     value={transitionNf}
                     onChange={(e) => setTransitionNf(parseInt(e.target.value, 10))}
-                    style={{ padding: '3px 6px', borderRadius: '5px', fontSize: '11px', fontWeight: '700' }}
+                    style={{ padding: '3px 6px', borderRadius: '5px', fontSize: '11px', fontWeight: '700', background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.15)' }}
                   >
                     {[1, 2, 3, 4].map((v) => (
                       <option key={v} value={v}>n={v}</option>
@@ -1127,14 +1231,14 @@ function ElectronClouding() {
 
           {/* Bohr vs Heisenberg Quantum Concept Comparison */}
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'bohr') && (
-            <div className="electron-bento-card surface-blue">
-              <div className="card-header-row">
-                <h4 className="card-title">Classical Bohr vs Quantum Cloud</h4>
-                <span className="card-pill-tag">Heisenberg Uncertainty</span>
+            <div className="bento-subcard surface-blue">
+              <div className="card-top-row">
+                <h4 className="card-title-text">Classical Bohr vs Quantum Cloud</h4>
+                <span className="doodle-badge">Heisenberg Uncertainty</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#334155', lineHeight: 1.4 }}>
                 <p style={{ margin: 0 }}>
-                  <strong>1. Classical Bohr Model (1913):</strong> Treated electrons as deterministic particles in circular planetary orbits of fixed radius <em>r = n² a₀</em>. It could not explain multi-electron atoms or orbital shapes.
+                  <strong>1. Classical Bohr Model (1913):</strong> Treated electrons as deterministic particles in circular planetary orbits of fixed radius <em>r = n² a₀</em>. It could not explain multi-electron atoms or 3D orbital shapes.
                 </p>
                 <p style={{ margin: 0 }}>
                   <strong>2. Quantum Mechanical Cloud (Schrödinger 1926):</strong> Because of the Heisenberg Uncertainty Principle (<em>Δx · Δp ≥ ℏ/2</em>), an electron does not follow a definite path. Instead, it forms a <strong>3D probability density cloud |ψ|²</strong>.
