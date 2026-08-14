@@ -130,6 +130,39 @@
   padding: 6px 14px;
   border-radius: var(--radius-full);
   color: #2D2B24;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.global-flag-legend {
+  color: #15803D;
+  font-weight: 700;
+}
+
+.local-flag-legend {
+  color: #DC2626;
+  font-weight: 700;
+}
+
+/* Minima Flags SVG */
+.minima-flag-marker {
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.global-flag-glow {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+.flag-label-group {
+  opacity: 0.92;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.minima-flag-marker:hover .flag-label-group {
+  opacity: 1;
+  transform: translate(0, -45px);
 }
 
 /* SVG Plot Wrapper */

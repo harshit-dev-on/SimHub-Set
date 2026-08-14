@@ -1,4 +1,108 @@
-// Mathematical functions and their analytical derivatives for Gradient Descent simulation
+// Mathematical functions, analytical derivatives, optimizers & critical points analysis
+
+/**
+ * Numerically finds all local and global minima of a function within [xMin, xMax]
+ * Returns array of { x, y, isGlobal, label }
+ */
+export function findFunctionMinima(fn, derivative, xMin = -4, xMax = 4, samples = 300) {
+  if (!fn) return [];
+
+  const safeFn = fn;
+  const safeDeriv = derivative || ((x) => {
+    const h = 1e-5;
+    return (safeFn(x + h) - safeFn(x - h)) / (2 * h);
+  });
+
+  const candidates = [];
+  const step = (xMax - xMin) / samples;
+
+  let prevX = xMin;
+  let prevGrad = safeDeriv(prevX);
+  let prevY = safeFn(prevX);
+
+  for (let i = 1; i <= samples; i++) {
+    const currX = xMin + i * step;
+    let currGrad = 0;
+    let currY = 0;
+    try {
+      currGrad = safeDeriv(currX);
+      currY = safeFn(currX);
+    } catch {
+      continue;
+    }
+
+    if (isNaN(currY) || !isFinite(currY)) continue;
+
+    // Detect derivative sign change from negative to positive (valley bottom)
+    const isSignChange = prevGrad < 0 && currGrad >= 0;
+    // Or discrete valley check
+    const isValleyBottom = i > 1 && prevY < safeFn(prevX - step) && prevY < currY;
+
+    if (isSignChange || isValleyBottom) {
+      // Refine with bisection / ternary search
+      let left = prevX - step;
+      let right = currX;
+      for (let iter = 0; iter < 18; iter++) {
+        const mid = (left + right) / 2;
+        const gMid = safeDeriv(mid);
+        if (gMid < 0) {
+          left = mid;
+        } else {
+          right = mid;
+        }
+      }
+      const refinedX = Number(((left + right) / 2).toFixed(3));
+      let refinedY = safeFn(refinedX);
+      if (!isNaN(refinedY) && isFinite(refinedY)) {
+        // Check if not already in candidates list
+        const isDuplicate = candidates.some((c) => Math.abs(c.x - refinedX) < 0.12);
+        if (!isDuplicate && refinedX >= xMin && refinedX <= xMax) {
+          candidates.push({
+            x: refinedX,
+            y: Number(refinedY.toFixed(3)),
+          });
+        }
+      }
+    }
+
+    prevX = currX;
+    prevGrad = currGrad;
+    prevY = currY;
+  }
+
+  // If no interior minimum was detected, search for lowest sampled point
+  if (candidates.length === 0) {
+    let minX = xMin;
+    let minY = Infinity;
+    for (let i = 0; i <= samples; i++) {
+      const testX = xMin + i * step;
+      const testY = safeFn(testX);
+      if (testY < minY) {
+        minY = testY;
+        minX = testX;
+      }
+    }
+    candidates.push({
+      x: Number(minX.toFixed(2)),
+      y: Number(minY.toFixed(2)),
+    });
+  }
+
+  // Identify the global minimum (lowest y value)
+  let lowestY = Infinity;
+  candidates.forEach((c) => {
+    if (c.y < lowestY) lowestY = c.y;
+  });
+
+  return candidates.map((c) => {
+    const isGlobal = Math.abs(c.y - lowestY) < 0.005;
+    return {
+      ...c,
+      isGlobal,
+      label: isGlobal ? 'Global Min 🌟' : 'Local Min ⚠️',
+    };
+  });
+}
 
 export const LOSS_FUNCTIONS = {
   quadratic: {
@@ -35,7 +139,7 @@ export const LOSS_FUNCTIONS = {
     derivative: (x) => 4 * Math.pow(x, 3) - 6 * x + 0.5,
     latex: 'f(x) = x^4 - 3x^2 + 0.5x',
     derivLatex: "f'(x) = 4x^3 - 6x + 0.5",
-    optimum: 1.16,
+    optimum: -1.3,
   },
   plateau: {
     id: 'plateau',

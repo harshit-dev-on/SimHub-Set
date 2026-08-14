@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './GradientDescent.css';
-import { LOSS_FUNCTIONS, OPTIMIZERS } from './simulationMath';
+import { LOSS_FUNCTIONS, OPTIMIZERS, findFunctionMinima } from './simulationMath';
 import { compileMathExpression } from './mathParser';
 import CustomFunctionModal from './CustomFunctionModal';
 import PogoRider from './PogoRider';
@@ -211,6 +211,11 @@ export default function GradientDescent() {
   const safeFn = useMemo(() => currentFunc.fn || ((x) => x * x), [currentFunc]);
   const safeDeriv = useMemo(() => currentFunc.derivative || ((x) => 2 * x), [currentFunc]);
 
+  // Compute all local and global minima
+  const detectedMinima = useMemo(() => {
+    return findFunctionMinima(safeFn, safeDeriv, currentFunc.xMin, currentFunc.xMax);
+  }, [safeFn, safeDeriv, currentFunc.xMin, currentFunc.xMax]);
+
   const currentY = safeFn(currentX);
   const currentGrad = safeDeriv(currentX);
   const nextStepDelta = -learningRate * currentGrad;
@@ -371,11 +376,13 @@ export default function GradientDescent() {
               <h3 className="card-sec-title">
                 {visualMode === 'pogo' ? 'Grassy Hills Terrain' : 'Loss Landscape f(w)'}
               </h3>
-              <span className="card-instruction-hint">Click anywhere on the hills to drop the Pogo Rider</span>
+              <span className="card-instruction-hint">Click or drag anywhere to position the Rider</span>
             </div>
             <div className="optimum-indicator">
-              {visualMode === 'pogo' ? 'Lowest Valley: ' : 'Target Min: '}
-              <strong>w ≈ {currentFunc.optimum}</strong>
+              <span className="global-flag-legend">⛳ Green: Global Min</span>
+              {detectedMinima.some((m) => !m.isGlobal) && (
+                <span className="local-flag-legend"> • 🚩 Red: Local Min</span>
+              )}
             </div>
           </div>
 
@@ -473,14 +480,6 @@ export default function GradientDescent() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />
-                  {/* Goal Minima Flag 🚩 */}
-                  {currentFunc.optimum !== undefined && !isNaN(currentFunc.optimum) && (
-                    <g transform={`translate(${scaleX(currentFunc.optimum)}, ${scaleY(safeFn(currentFunc.optimum))})`}>
-                      <line x1="0" y1="0" x2="0" y2="-28" stroke="#37474F" strokeWidth="2.5" strokeLinecap="round" />
-                      <polygon points="0,-28 16,-22 0,-16" fill="#EF4444" />
-                      <circle cx="0" cy="-29" r="2" fill="#F59E0B" />
-                    </g>
-                  )}
                 </g>
               ) : (
                 <>
@@ -497,6 +496,63 @@ export default function GradientDescent() {
                   />
                 </>
               )}
+
+              {/* Flags at ALL Local and Global Minima */}
+              {detectedMinima.map((min, idx) => {
+                const posX = scaleX(min.x);
+                const posY = scaleY(min.y);
+                const isGlobal = min.isGlobal;
+                const flagColor = isGlobal ? '#22C55E' : '#EF4444'; // Green for global, Red for local
+                const poleColor = isGlobal ? '#166534' : '#37474F';
+                const tipColor = isGlobal ? '#EAB308' : '#94A3B8';
+
+                return (
+                  <g key={`flag-${idx}-${min.x}`} transform={`translate(${posX}, ${posY})`} className="minima-flag-marker">
+                    {/* Glowing base ring for global minimum */}
+                    {isGlobal && (
+                      <ellipse cx="0" cy="0" rx="10" ry="3.5" fill="#22C55E" opacity="0.3" className="global-flag-glow" />
+                    )}
+
+                    {/* Flagpole */}
+                    <line x1="0" y1="0" x2="0" y2="-32" stroke={poleColor} strokeWidth="2.5" strokeLinecap="round" />
+                    <circle cx="0" cy="-33" r="2.5" fill={tipColor} />
+
+                    {/* Flag Fabric (Green for Global, Red for Local) */}
+                    <polygon
+                      points="0,-32 18,-25 0,-18"
+                      fill={flagColor}
+                      stroke="#FFFFFF"
+                      strokeWidth="0.8"
+                    />
+
+                    {/* Mini Badge / Label over the flag */}
+                    <g transform="translate(0, -42)" className="flag-label-group">
+                      <rect
+                        x={isGlobal ? -32 : -28}
+                        y="-12"
+                        width={isGlobal ? 64 : 56}
+                        height="16"
+                        rx="8"
+                        fill={isGlobal ? '#14532D' : '#7F1D1D'}
+                        stroke="#FFFFFF"
+                        strokeWidth="1"
+                        filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
+                      />
+                      <text
+                        x="0"
+                        y="0"
+                        textAnchor="middle"
+                        fontFamily="var(--font-primary)"
+                        fontSize="9"
+                        fontWeight="700"
+                        fill="#FFFFFF"
+                      >
+                        {isGlobal ? 'Global 🌟' : 'Local ⚠️'}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
 
               {/* Descent History Trajectory Line & Step Markers */}
               {history.length > 1 && (
