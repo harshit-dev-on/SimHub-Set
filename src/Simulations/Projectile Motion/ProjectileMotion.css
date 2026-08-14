@@ -88,8 +88,35 @@
   border-color: #0F172A;
 }
 
+/* Visual Mode Toggle Pills */
+.visual-mode-toggle-pill {
+  display: flex;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px;
+  border-radius: var(--radius-full);
+  gap: 2px;
+}
+
+.vm-toggle-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  color: #555864;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vm-toggle-btn.active {
+  background: #15171D;
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
 /* --------------------------------------------------------------------------
-   SVG Canvas Viewport
+   SVG Canvas Viewport & Mathematical Graph Paper Mode
    -------------------------------------------------------------------------- */
 .projectile-svg-viewport {
   flex: 1;
@@ -101,6 +128,52 @@
               linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 82%, #CBD5E1 83%, #94A3B8 100%);
   user-select: none;
   cursor: default;
+  transition: background 0.3s ease;
+}
+
+.projectile-svg-viewport.math-mode {
+  background: #FDFBF7;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(59, 130, 246, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+}
+
+/* Floating Math Formula Badge in Graph Mode */
+.floating-math-formula-pill {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(255, 253, 245, 0.95);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  padding: 6px 12px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: #1E293B;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  pointer-events: none;
+  animation: fadeIn 0.25s ease;
+}
+
+.floating-math-formula-pill .fn-header {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #2563EB;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.floating-math-formula-pill .fn-body {
+  font-weight: 700;
+  color: #0F172A;
 }
 
 .projectile-svg {
@@ -121,14 +194,44 @@
   stroke-width: 2;
 }
 
-.ground-dirt-fill {
-  fill: #E0D7C3;
-}
-
 .grass-top-rim {
   stroke: #84CC16;
   stroke-width: 4;
   stroke-linecap: round;
+}
+
+/* Coordinate System & Axes */
+.coord-axis-line {
+  stroke: #334155;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.coord-tick-line {
+  stroke: #64748B;
+  stroke-width: 1.5;
+}
+
+.coord-axis-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  fill: #0F172A;
+  letter-spacing: 0.2px;
+}
+
+.coord-tick-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  fill: #64748B;
+}
+
+.coord-origin-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 9.5px;
+  font-weight: 800;
+  fill: #475569;
 }
 
 /* Cannon Graphics */

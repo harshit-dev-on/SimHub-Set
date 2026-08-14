@@ -12,16 +12,19 @@ const CELESTIAL_GRAVITIES = [
 
 // Quick Angle Presets
 const ANGLE_PRESETS = [
-  { label: '30° Shallow', angle: 30 },
-  { label: '45° Max Range', angle: 45 },
-  { label: '60° High Arc', angle: 60 },
-  { label: '75° Lob', angle: 75 },
+  { label: '30° Shallow (Right)', angle: 30 },
+  { label: '45° Max Range (Right)', angle: 45 },
+  { label: '60° High Arc (Right)', angle: 60 },
+  { label: '90° Vertical', angle: 90 },
+  { label: '120° High Arc (Left)', angle: 120 },
+  { label: '135° Max Range (Left)', angle: 135 },
+  { label: '150° Shallow (Left)', angle: 150 },
 ];
 
 export default function ProjectileMotion() {
   // Launch Parameters
   const [initialSpeed, setInitialSpeed] = useState(25); // m/s
-  const [angleDeg, setAngleDeg] = useState(45); // degrees
+  const [angleDeg, setAngleDeg] = useState(45); // degrees (0 to 180)
   const [initialHeight, setInitialHeight] = useState(5); // meters
   const [gravityPlanet, setGravityPlanet] = useState('earth');
   const [customGravity, setCustomGravity] = useState(9.8);
@@ -57,6 +60,8 @@ export default function ProjectileMotion() {
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
 
   // Overlays & Analysis View
+  const [visualMode, setVisualMode] = useState('physics'); // 'physics' | 'math'
+  const [showAxes, setShowAxes] = useState(true);
   const [showVectors, setShowVectors] = useState(true);
   const [showTrajectory, setShowTrajectory] = useState(true);
   const [showApexMarker, setShowApexMarker] = useState(true);
@@ -76,6 +81,32 @@ export default function ProjectileMotion() {
 
   // Radians
   const angleRad = useMemo(() => (angleDeg * Math.PI) / 180, [angleDeg]);
+
+  // Parabolic Trajectory Equation y(x) = ax^2 + bx + c
+  const parabolaEquation = useMemo(() => {
+    const c = initialHeight;
+    const b = Math.tan(angleRad);
+    const cosVal = Math.cos(angleRad);
+    const denom = 2 * initialSpeed * initialSpeed * cosVal * cosVal;
+    const a = denom > 0 ? -(g / denom) : 0;
+    const bStr = Math.abs(b).toFixed(3);
+    const aStr = Math.abs(a).toFixed(4);
+    let str = 'y(x) = ';
+    if (c > 0) str += `${c.toFixed(1)} `;
+    if (b >= 0) {
+      str += `${c > 0 ? '+ ' : ''}${bStr}x `;
+    } else {
+      str += `- ${bStr}x `;
+    }
+    str += `- ${aStr}x²`;
+
+    return {
+      a,
+      b,
+      c,
+      displayStr: str,
+    };
+  }, [initialHeight, angleRad, initialSpeed, g]);
 
   // Theoretical Calculations (Vacuum / Analytical)
   const theoretical = useMemo(() => {
@@ -280,13 +311,79 @@ export default function ProjectileMotion() {
   const totalMechanicalEnergy = kineticEnergy + potentialEnergy;
   const keRatio = totalMechanicalEnergy > 0 ? (kineticEnergy / totalMechanicalEnergy) * 100 : 50;
 
+  // Helper to compute pleasant, non-crowded step sizes (1, 2, 5, 10, 20, 25, 50, 100...)
+  const calculateNiceStep = (range, targetTicks = 8) => {
+    if (range <= 0) return 10;
+    const roughStep = range / targetTicks;
+    const power = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const fraction = roughStep / power;
+    let niceFraction = 1;
+    if (fraction > 1.5 && fraction <= 3) niceFraction = 2;
+    else if (fraction > 3 && fraction <= 7) niceFraction = 5;
+    else if (fraction > 7) niceFraction = 10;
+    return niceFraction * power;
+  };
+
   // Viewport / Coordinate Mapping
-  // Canvas domain: X: [ -5, max(80, targetPos.x + 20, theoretical.range + 15) ], Y: [ -2, max(35, theoretical.hMax + 10) ]
   const viewBounds = useMemo(() => {
-    const maxX = Math.max(75, showTarget ? targetPos.x + 18 : 0, (theoretical.range || 40) + 15);
+    const range = theoretical.range || 0;
+    
+    // Key points that must be comfortably visible
+    const relevantX = [0];
+    if (showTarget) relevantX.push(targetPos.x);
+    if (range) relevantX.push(range);
+    if (isRunning || simTime > 0) relevantX.push(flightState.x);
+
+    const minObservedX = Math.min(...relevantX);
+    const maxObservedX = Math.max(...relevantX);
+
+    // Padding margins
+    let minX = minObservedX < -2 ? minObservedX - 15 : -8;
+    let maxX = maxObservedX > 2 ? maxObservedX + 15 : 20;
+
+    // Default comfortable boundaries based on aim direction
+    if (angleDeg > 90) {
+      minX = Math.min(minX, -60);
+      maxX = Math.max(maxX, 10);
+    } else {
+      minX = Math.min(minX, -8);
+      maxX = Math.max(maxX, 65);
+    }
+
     const maxY = Math.max(30, showTarget ? targetPos.y + 12 : 0, (theoretical.hMax || 15) + 12);
-    return { minX: -6, maxX, minY: -3, maxY };
-  }, [showTarget, targetPos.x, targetPos.y, theoretical.range, theoretical.hMax]);
+    return { minX, maxX, minY: -3, maxY };
+  }, [showTarget, targetPos.x, targetPos.y, theoretical.range, theoretical.hMax, angleDeg, isRunning, simTime, flightState.x]);
+
+  // Dynamic Grid Marks for X with Adaptive Step (prevents number squeezing when zoomed out)
+  const xGridMarks = useMemo(() => {
+    const marks = [];
+    const span = viewBounds.maxX - viewBounds.minX;
+    // Dynamically choose step size (e.g. 10m, 20m, 50m, 100m) to keep ~7 to 10 ticks max
+    const step = calculateNiceStep(span, 8);
+    const start = Math.floor(viewBounds.minX / step) * step;
+    const end = Math.ceil(viewBounds.maxX / step) * step;
+    for (let gx = start; gx <= end; gx += step) {
+      if (gx !== 0 && gx >= viewBounds.minX + step * 0.15 && gx <= viewBounds.maxX - step * 0.15) {
+        marks.push(gx);
+      }
+    }
+    return marks;
+  }, [viewBounds.minX, viewBounds.maxX]);
+
+  // Dynamic Grid Marks for Y with Adaptive Step
+  const yGridMarks = useMemo(() => {
+    const marks = [];
+    const span = viewBounds.maxY - viewBounds.minY;
+    const step = calculateNiceStep(span, 6);
+    const start = Math.max(step, Math.floor(viewBounds.minY / step) * step);
+    const end = Math.ceil(viewBounds.maxY / step) * step;
+    for (let gy = start; gy <= end; gy += step) {
+      if (gy > 0 && gy <= viewBounds.maxY - step * 0.15) {
+        marks.push(gy);
+      }
+    }
+    return marks;
+  }, [viewBounds.minY, viewBounds.maxY]);
 
   const svgWidth = 800;
   const svgHeight = 460;
@@ -325,14 +422,14 @@ export default function ProjectileMotion() {
       const svgY = ((e.clientY - rect.top) / rect.height) * svgHeight;
       const rawX = fromSvgX(svgX);
       const rawY = fromSvgY(svgY);
-      const clampedX = Math.max(5, Math.min(viewBounds.maxX - 5, rawX));
+      const clampedX = Math.max(viewBounds.minX + 4, Math.min(viewBounds.maxX - 4, rawX));
       const clampedY = Math.max(0, Math.min(viewBounds.maxY - 4, rawY));
       setTargetPos({
         x: Math.round(clampedX * 10) / 10,
         y: Math.round(clampedY * 10) / 10,
       });
     },
-    [isDraggingTarget, fromSvgX, fromSvgY, viewBounds.maxX, viewBounds.maxY]
+    [isDraggingTarget, fromSvgX, fromSvgY, viewBounds.minX, viewBounds.maxX, viewBounds.maxY]
   );
 
   const handlePointerUp = useCallback(() => {
@@ -399,15 +496,40 @@ export default function ProjectileMotion() {
             {/* Header / Badges Row */}
             <div className="projectile-stage-header">
               <div className="stage-badge-group">
-                <span className="stage-mode-pill">🎯 Ballistics Lab</span>
+                {/* Visual Mode Selector Pill */}
+                <div className="visual-mode-toggle-pill">
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${visualMode === 'physics' ? 'active' : ''}`}
+                    onClick={() => setVisualMode('physics')}
+                  >
+                    🚀 Ballistics Lab
+                  </button>
+                  <button
+                    type="button"
+                    className={`vm-toggle-btn ${visualMode === 'math' ? 'active' : ''}`}
+                    onClick={() => setVisualMode('math')}
+                  >
+                    📊 Math Graph
+                  </button>
+                </div>
+
                 <div className="stage-status-live">
                   <span className={`status-dot ${isRunning ? 'in-flight' : ''}`} />
-                  <span>{isRunning ? 'Flight Active' : flightState.isLanded ? 'Impact Settled' : 'Ready to Fire'}</span>
+                  <span>{isRunning ? 'Flight Active' : flightState.isLanded ? 'Impact Settled' : 'Ready'}</span>
                 </div>
               </div>
 
               {/* View Overlays */}
               <div className="stage-overlay-toggles">
+                <button
+                  type="button"
+                  className={`toggle-chip ${showAxes ? 'active' : ''}`}
+                  onClick={() => setShowAxes(!showAxes)}
+                  title="Toggle coordinate axes"
+                >
+                  📐 Axes: {showAxes ? 'ON' : 'OFF'}
+                </button>
                 <button
                   type="button"
                   className={`toggle-chip ${showTarget ? 'active' : ''}`}
@@ -435,7 +557,7 @@ export default function ProjectileMotion() {
                   className={`toggle-chip ${showApexMarker ? 'active' : ''}`}
                   onClick={() => setShowApexMarker(!showApexMarker)}
                 >
-                  ▲ Apex
+                  ▲ {visualMode === 'math' ? 'Vertex' : 'Apex'}
                 </button>
                 {ghostTrails.length > 0 && (
                   <button
@@ -450,8 +572,16 @@ export default function ProjectileMotion() {
               </div>
             </div>
 
-            {/* Ballistics SVG Viewport */}
-            <div className="projectile-svg-viewport">
+            {/* Ballistics / Mathematical SVG Viewport */}
+            <div className={`projectile-svg-viewport ${visualMode === 'math' ? 'math-mode' : ''}`}>
+              {/* Floating Explicit Parabola Formula Badge in Math Mode */}
+              {visualMode === 'math' && (
+                <div className="floating-math-formula-pill">
+                  <span className="fn-header">Parabolic Trajectory Function</span>
+                  <span className="fn-body">{parabolaEquation.displayStr}</span>
+                </div>
+              )}
+
               <svg
                 ref={svgRef}
                 className="projectile-svg"
@@ -469,47 +599,181 @@ export default function ProjectileMotion() {
                     <stop offset="40%" stopColor="#DC2626" />
                     <stop offset="100%" stopColor="#991B1B" />
                   </radialGradient>
+                  <marker
+                    id="axisArrowheadX"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 7 3, 0 6" fill="#334155" />
+                  </marker>
+                  <marker
+                    id="axisArrowheadY"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 7 3, 0 6" fill="#334155" />
+                  </marker>
+                  <marker
+                    id="v0VectorArrowhead"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 7 3, 0 6" fill="#2563EB" />
+                  </marker>
                 </defs>
 
-                {/* Sky Grid Marks */}
-                {[10, 20, 30, 40, 50, 60, 70, 80].map((gx) => (
+                {/* Sky / Cartesian Grid Marks */}
+                {xGridMarks.map((gx) => (
                   <g key={`grid-x-${gx}`}>
                     <line x1={toSvgX(gx)} y1={0} x2={toSvgX(gx)} y2={groundY} className="grid-line" />
-                    <text x={toSvgX(gx)} y={groundY + 14} fontSize="9" fill="#94A3B8" textAnchor="middle" fontFamily="monospace">
-                      {gx}m
-                    </text>
                   </g>
                 ))}
 
-                {[10, 20, 30].map((gy) => (
+                {yGridMarks.map((gy) => (
                   <g key={`grid-y-${gy}`}>
                     <line x1={0} y1={toSvgY(gy)} x2={svgWidth} y2={toSvgY(gy)} className="grid-line" />
-                    <text x={12} y={toSvgY(gy) - 3} fontSize="9" fill="#94A3B8" fontFamily="monospace">
-                      {gy}m
-                    </text>
                   </g>
                 ))}
 
-                {/* Ground Platform & Dirt Fill */}
-                <rect x={0} y={groundY} width={svgWidth} height={svgHeight - groundY} className="ground-dirt-fill" />
-                <line x1={0} y1={groundY} x2={svgWidth} y2={groundY} className="grass-top-rim" />
+                {/* Physics Mode: Ground Platform & Dirt Fill */}
+                {visualMode === 'physics' && (
+                  <>
+                    <rect x={0} y={groundY} width={svgWidth} height={svgHeight - groundY} fill="#E2DDD2" />
+                    <line x1={0} y1={groundY} x2={svgWidth} y2={groundY} className="grass-top-rim" />
+                  </>
+                )}
 
-                {/* Initial Elevation Cliff/Pillar */}
-                {initialHeight > 0 && (
+                {/* Math Mode: Clean y = 0 Reference Line */}
+                {visualMode === 'math' && !showAxes && (
+                  <line x1={0} y1={groundY} x2={svgWidth} y2={groundY} stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="4 4" />
+                )}
+
+                {/* Formal Coordinate Axes System */}
+                {showAxes && (
+                  <g className="coordinate-axes-group">
+                    {/* Horizontal X-Axis */}
+                    <line
+                      x1={12}
+                      y1={groundY}
+                      x2={svgWidth - 12}
+                      y2={groundY}
+                      className="coord-axis-line"
+                      markerEnd="url(#axisArrowheadX)"
+                    />
+                    {/* X-Axis Label */}
+                    <text
+                      x={svgWidth - 16}
+                      y={groundY - 9}
+                      textAnchor="end"
+                      className="coord-axis-label"
+                    >
+                      {visualMode === 'math' ? '+x ➔' : 'Distance x (m) ➔'}
+                    </text>
+                    {viewBounds.minX <= -25 && (
+                      <text
+                        x={16}
+                        y={groundY - 9}
+                        textAnchor="start"
+                        className="coord-axis-label"
+                      >
+                        {visualMode === 'math' ? '⬅ -x' : '⬅ -x (m)'}
+                      </text>
+                    )}
+
+                    {/* Vertical Y-Axis */}
+                    <line
+                      x1={toSvgX(0)}
+                      y1={groundY + 8}
+                      x2={toSvgX(0)}
+                      y2={16}
+                      className="coord-axis-line"
+                      markerEnd="url(#axisArrowheadY)"
+                    />
+                    {/* Y-Axis Label */}
+                    <text
+                      x={toSvgX(0) + 8}
+                      y={22}
+                      textAnchor="start"
+                      className="coord-axis-label"
+                    >
+                      {visualMode === 'math' ? '⬆ y-axis (Height, m)' : '⬆ Height y (m)'}
+                    </text>
+
+                    {/* Origin Marker */}
+                    <circle cx={toSvgX(0)} cy={groundY} r="3.5" fill="#334155" />
+                    <text
+                      x={toSvgX(0) - 6}
+                      y={groundY + 14}
+                      textAnchor="end"
+                      className="coord-origin-label"
+                    >
+                      (0,0)
+                    </text>
+
+                    {/* X-Axis Ticks & Numerical Labels */}
+                    {xGridMarks.map((gx) => {
+                      const sX = toSvgX(gx);
+                      return (
+                        <g key={`axis-tick-x-${gx}`}>
+                          <line x1={sX} y1={groundY - 4} x2={sX} y2={groundY + 4} className="coord-tick-line" />
+                          <text x={sX} y={groundY + 16} textAnchor="middle" className="coord-tick-label">
+                            {gx}m
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Y-Axis Ticks & Numerical Labels */}
+                    {yGridMarks.map((gy) => {
+                      const sY = toSvgY(gy);
+                      return (
+                        <g key={`axis-tick-y-${gy}`}>
+                          <line x1={toSvgX(0) - 4} y1={sY} x2={toSvgX(0) + 4} y2={sY} className="coord-tick-line" />
+                          <text x={toSvgX(0) - 7} y={sY + 3.5} textAnchor="end" className="coord-tick-label">
+                            {gy}m
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                )}
+
+                {/* Physics Mode: Elevation Cliff */}
+                {visualMode === 'physics' && initialHeight > 0 && (
                   <g>
                     <rect
-                      x={toSvgX(-3)}
+                      x={toSvgX(-2.5)}
                       y={toSvgY(initialHeight)}
-                      width={toSvgX(2) - toSvgX(-3)}
+                      width={toSvgX(2.5) - toSvgX(-2.5)}
                       height={groundY - toSvgY(initialHeight)}
                       fill="#E2E8F0"
                       stroke="#94A3B8"
                       strokeWidth="1.5"
                       rx="4"
                     />
-                    <line x1={toSvgX(-3)} y1={toSvgY(initialHeight)} x2={toSvgX(2)} y2={toSvgY(initialHeight)} stroke="#84CC16" strokeWidth="3" />
-                    <text x={toSvgX(-0.5)} y={toSvgY(initialHeight / 2) + 4} fill="#64748B" fontSize="10" fontWeight="700" textAnchor="middle" fontFamily="monospace">
+                    <line x1={toSvgX(-2.5)} y1={toSvgY(initialHeight)} x2={toSvgX(2.5)} y2={toSvgY(initialHeight)} stroke="#84CC16" strokeWidth="3" />
+                    <text x={toSvgX(0)} y={toSvgY(initialHeight / 2) + 4} fill="#64748B" fontSize="10" fontWeight="700" textAnchor="middle" fontFamily="monospace">
                       h₀ = {initialHeight}m
+                    </text>
+                  </g>
+                )}
+
+                {/* Math Mode: Elevation Guide & Initial Point (0, h0) */}
+                {visualMode === 'math' && initialHeight > 0 && (
+                  <g>
+                    <line x1={toSvgX(0)} y1={groundY} x2={toSvgX(0)} y2={toSvgY(initialHeight)} stroke="#2563EB" strokeWidth="1.5" strokeDasharray="3 3" />
+                    <circle cx={toSvgX(0)} cy={toSvgY(initialHeight)} r="4" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
+                    <text x={toSvgX(0) - 8} y={toSvgY(initialHeight) + 4} textAnchor="end" fontSize="10" fontWeight="700" fill="#2563EB" fontFamily="monospace">
+                      P₀ (0, {initialHeight})
                     </text>
                   </g>
                 )}
@@ -526,15 +790,24 @@ export default function ProjectileMotion() {
 
                 {/* Theoretical Predicted Path */}
                 {showTrajectory && predictedPathD && (
-                  <path d={predictedPathD} className="trajectory-predicted-path" />
+                  <path
+                    d={predictedPathD}
+                    className="trajectory-predicted-path"
+                    stroke={visualMode === 'math' ? '#2563EB' : 'rgba(220, 38, 38, 0.4)'}
+                  />
                 )}
 
                 {/* Active Flight Trajectory Path */}
                 {showTrajectory && activeTrailD && (
-                  <path d={activeTrailD} className="trajectory-active-path" />
+                  <path
+                    d={activeTrailD}
+                    className="trajectory-active-path"
+                    stroke={visualMode === 'math' ? '#4F46E5' : '#DC2626'}
+                    strokeWidth={visualMode === 'math' ? 3 : 2.5}
+                  />
                 )}
 
-                {/* Draggable Target Practice Bullseye */}
+                {/* Draggable Target Bullseye / Geometric Target Region */}
                 {showTarget && (
                   <g
                     className={`target-draggable-group ${isDraggingTarget ? 'is-dragging' : ''}`}
@@ -542,14 +815,16 @@ export default function ProjectileMotion() {
                     onPointerDown={handlePointerDownTarget}
                   >
                     {/* Elevated stand/guide or ground post */}
-                    {targetPos.y > 0 ? (
-                      <>
-                        <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(targetPos.y)} className="target-elevation-guide" />
-                        <line x1="0" y1="0" x2="0" y2="16" className="target-base-post" />
-                        <circle cx="0" cy={groundY - toSvgY(targetPos.y)} r="3.5" fill="#DC2626" opacity="0.6" />
-                      </>
-                    ) : (
-                      <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(0)} className="target-base-post" />
+                    {visualMode !== 'math' && (
+                      targetPos.y > 0 ? (
+                        <>
+                          <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(targetPos.y)} className="target-elevation-guide" />
+                          <line x1="0" y1="0" x2="0" y2="16" className="target-base-post" />
+                          <circle cx="0" cy={groundY - toSvgY(targetPos.y)} r="3.5" fill="#DC2626" opacity="0.6" />
+                        </>
+                      ) : (
+                        <line x1="0" y1="0" x2="0" y2={groundY - toSvgY(0)} className="target-base-post" />
+                      )
                     )}
 
                     {/* Drag Active Halo */}
@@ -565,12 +840,22 @@ export default function ProjectileMotion() {
                       />
                     )}
 
-                    {/* Outer Ring */}
-                    <circle cx="0" cy="0" r={toSvgX(targetRadius) - toSvgX(0)} className="target-outer-ring" />
-                    {/* Mid Ring */}
-                    <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.65} className="target-mid-ring" />
-                    {/* Bullseye Center */}
-                    <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.3} className="target-bullseye-center" />
+                    {visualMode === 'math' ? (
+                      /* Small Red Cross */
+                      <g className="target-math-cross">
+                        <line x1="-8" y1="-8" x2="8" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
+                        <line x1="8" y1="-8" x2="-8" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
+                      </g>
+                    ) : (
+                      <>
+                        {/* Outer Ring */}
+                        <circle cx="0" cy="0" r={toSvgX(targetRadius) - toSvgX(0)} className="target-outer-ring" />
+                        {/* Mid Ring */}
+                        <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.65} className="target-mid-ring" />
+                        {/* Bullseye Center */}
+                        <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.3} className="target-bullseye-center" />
+                      </>
+                    )}
 
                     {/* Label Badge with live coordinates and drag prompt */}
                     <g transform="translate(0, -18)">
@@ -611,7 +896,7 @@ export default function ProjectileMotion() {
                   />
                 )}
 
-                {/* Apex Marker */}
+                {/* Apex Marker / Math Vertex */}
                 {showApexMarker && (apexData || (simTime === 0 && theoretical.hMax > 0)) && (
                   <g>
                     {(() => {
@@ -624,7 +909,7 @@ export default function ProjectileMotion() {
                           <line x1={sX} y1={sY} x2={sX} y2={groundY} className="apex-marker-line" />
                           <circle cx={sX} cy={sY} r="4" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
                           <text x={sX} y={sY - 8} fill="#2563EB" textAnchor="middle" className="marker-label">
-                            ▲ H_max = {apexY.toFixed(1)}m
+                            {visualMode === 'math' ? `Vertex (${apexX.toFixed(1)}, ${apexY.toFixed(1)})` : `▲ H_max = ${apexY.toFixed(1)}m`}
                           </text>
                         </g>
                       );
@@ -632,8 +917,8 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Impact / Range Marker */}
-                {(landingData || (simTime === 0 && theoretical.range > 0)) && (
+                {/* Impact / Range Marker / Math Root */}
+                {(landingData || (simTime === 0 && Math.abs(theoretical.range) > 0.1)) && (
                   <g>
                     {(() => {
                       const rX = landingData ? landingData.x : theoretical.range;
@@ -642,7 +927,7 @@ export default function ProjectileMotion() {
                         <g>
                           <line x1={sX} y1={groundY - 8} x2={sX} y2={groundY + 8} className="range-marker-line" />
                           <text x={sX} y={groundY + 28} fill="#16A34A" textAnchor="middle" className="marker-label">
-                            🏁 Range = {rX.toFixed(1)}m
+                            {visualMode === 'math' ? `Root (${rX.toFixed(1)}, 0)` : `🏁 Range = ${rX.toFixed(1)}m`}
                           </text>
                         </g>
                       );
@@ -650,34 +935,106 @@ export default function ProjectileMotion() {
                   </g>
                 )}
 
-                {/* Cannon Base & Aiming Barrel */}
-                <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
-                  {/* Protractor Angle Arc */}
-                  <path
-                    d={`M 35 0 A 35 35 0 0 0 ${35 * Math.cos(angleRad)} ${-35 * Math.sin(angleRad)}`}
-                    className="angle-arc-guide"
-                  />
-                  <text x={42 * Math.cos(angleRad / 2)} y={-42 * Math.sin(angleRad / 2)} fill="#D97706" fontSize="10.5" fontWeight="800" fontFamily="sans-serif">
-                    {angleDeg}°
-                  </text>
+                {/* Launcher: Physics Cannon vs Math Vector Origin */}
+                {visualMode === 'physics' ? (
+                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                    {/* Protractor Angle Arc */}
+                    <path
+                      d={`M 35 0 A 35 35 0 0 0 ${35 * Math.cos(angleRad)} ${-35 * Math.sin(angleRad)}`}
+                      className="angle-arc-guide"
+                    />
+                    <text
+                      x={42 * Math.cos(angleRad / 2)}
+                      y={-42 * Math.sin(angleRad / 2) + (angleDeg > 150 ? 4 : 0)}
+                      fill="#D97706"
+                      fontSize="10.5"
+                      fontWeight="800"
+                      textAnchor={angleDeg > 130 ? 'end' : angleDeg < 50 ? 'start' : 'middle'}
+                      fontFamily="sans-serif"
+                    >
+                      {angleDeg}°
+                    </text>
 
-                  {/* Rotating Barrel */}
-                  <g transform={`rotate(${-angleDeg})`}>
-                    <rect x="0" y="-8" width="36" height="16" rx="4" className="cannon-barrel" />
-                    <circle cx="36" cy="0" r="8" fill="#1E293B" />
+                    {/* Rotating Barrel */}
+                    <g transform={`rotate(${-angleDeg})`}>
+                      <rect x="0" y="-8" width="36" height="16" rx="4" className="cannon-barrel" />
+                      <circle cx="36" cy="0" r="8" fill="#1E293B" />
+                    </g>
+
+                    {/* Cannon Carriage / Wheels */}
+                    <ellipse cx="0" cy="4" rx="14" ry="10" className="cannon-platform" />
+                    <circle cx="0" cy="6" r="9" className="cannon-wheel" />
+                    <circle cx="0" cy="6" r="3" fill="#94A3B8" />
                   </g>
+                ) : (
+                  /* Math Mode: Vector Launcher Arrow v0 */
+                  <g transform={`translate(${cannonBaseX}, ${cannonBaseY})`}>
+                    {/* Angle Sector Arc */}
+                    <path
+                      d={`M 38 0 A 38 38 0 0 0 ${38 * Math.cos(angleRad)} ${-38 * Math.sin(angleRad)}`}
+                      fill="rgba(37, 99, 235, 0.12)"
+                      stroke="#2563EB"
+                      strokeWidth="1.5"
+                      strokeDasharray="2 2"
+                    />
+                    <text
+                      x={46 * Math.cos(angleRad / 2)}
+                      y={-46 * Math.sin(angleRad / 2)}
+                      fill="#2563EB"
+                      fontSize="10.5"
+                      fontWeight="800"
+                      textAnchor={angleDeg > 130 ? 'end' : angleDeg < 50 ? 'start' : 'middle'}
+                      fontFamily="monospace"
+                    >
+                      θ = {angleDeg}°
+                    </text>
 
-                  {/* Cannon Carriage / Wheels */}
-                  <ellipse cx="-4" cy="4" rx="14" ry="10" className="cannon-platform" />
-                  <circle cx="-4" cy="6" r="9" className="cannon-wheel" />
-                  <circle cx="-4" cy="6" r="3" fill="#94A3B8" />
-                </g>
+                    {/* Initial Velocity Vector Arrow v0 */}
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2={50 * Math.cos(angleRad)}
+                      y2={-50 * Math.sin(angleRad)}
+                      stroke="#2563EB"
+                      strokeWidth="2.5"
+                      markerEnd="url(#v0VectorArrowhead)"
+                    />
+                    <circle cx="0" cy="0" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="1.5" />
+                    <text
+                      x={56 * Math.cos(angleRad)}
+                      y={-56 * Math.sin(angleRad)}
+                      fill="#2563EB"
+                      fontSize="10"
+                      fontWeight="800"
+                      textAnchor={angleDeg > 90 ? 'end' : 'start'}
+                      fontFamily="monospace"
+                    >
+                      v₀ = {initialSpeed}m/s
+                    </text>
+                  </g>
+                )}
 
-                {/* Flying Projectile Ball */}
+                {/* Flying Projectile: Ballistics vs Math Point Particle */}
                 {(isRunning || simTime > 0) && (
                   <g transform={`translate(${projSvgX}, ${projSvgY})`}>
-                    <circle cx="0" cy="0" r="7" className="projectile-ball" />
-                    {isRunning && <circle cx="0" cy="0" r="10" fill="none" stroke="#F59E0B" strokeWidth="2" className="projectile-glow" />}
+                    {visualMode === 'physics' ? (
+                      <>
+                        <circle cx="0" cy="0" r="7" className="projectile-ball" />
+                        {isRunning && <circle cx="0" cy="0" r="10" fill="none" stroke="#F59E0B" strokeWidth="2" className="projectile-glow" />}
+                      </>
+                    ) : (
+                      /* Math Point Particle P(x, y) */
+                      <>
+                        <circle cx="0" cy="0" r="5" fill="#4F46E5" stroke="#FFFFFF" strokeWidth="2" />
+                        <circle cx="0" cy="0" r="9" fill="none" stroke="#4F46E5" strokeWidth="1.5" opacity="0.6" />
+                        <g transform="translate(0, -14)">
+                          <rect x="-36" y="-11" width="72" height="14" rx="3" fill="rgba(15, 23, 42, 0.85)" />
+                          <text y="-1" textAnchor="middle" fill="#FFFFFF" fontSize="9" fontWeight="700" fontFamily="monospace">
+                            ({flightState.x.toFixed(1)}, {flightState.y.toFixed(1)})
+                          </text>
+                        </g>
+                      </>
+                    )}
                   </g>
                 )}
 
@@ -686,7 +1043,15 @@ export default function ProjectileMotion() {
                   <g>
                     {/* Horizontal Component vx */}
                     <line x1={projSvgX} y1={projSvgY} x2={vxEndX} y2={projSvgY} className="vector-arrow-vx" />
-                    <text x={vxEndX + 4} y={projSvgY + 3} fill="#2563EB" fontSize="9.5" fontWeight="700" fontFamily="monospace">
+                    <text
+                      x={flightState.vx >= 0 ? vxEndX + 4 : vxEndX - 4}
+                      y={projSvgY + 3}
+                      fill="#2563EB"
+                      fontSize="9.5"
+                      fontWeight="700"
+                      textAnchor={flightState.vx >= 0 ? 'start' : 'end'}
+                      fontFamily="monospace"
+                    >
                       v_x ({flightState.vx.toFixed(1)})
                     </text>
 
@@ -759,7 +1124,7 @@ export default function ProjectileMotion() {
               <input
                 type="range"
                 min="0"
-                max="90"
+                max="180"
                 step="1"
                 value={angleDeg}
                 onChange={(e) => setAngleDeg(parseInt(e.target.value, 10))}
@@ -1046,7 +1411,7 @@ export default function ProjectileMotion() {
                     <span style={{ minWidth: '75px', fontWeight: '600' }}>Distance (X):</span>
                     <input
                       type="range"
-                      min="10"
+                      min="-80"
                       max="80"
                       step="0.5"
                       value={targetPos.x}
@@ -1083,7 +1448,7 @@ export default function ProjectileMotion() {
                       type="button"
                       onClick={() =>
                         setTargetPos({
-                          x: Math.floor(Math.random() * 45) + 25,
+                          x: (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 45) + 15),
                           y: Math.random() > 0.5 ? Math.floor(Math.random() * 15) : 0,
                         })
                       }
