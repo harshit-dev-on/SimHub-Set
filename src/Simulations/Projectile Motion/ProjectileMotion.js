@@ -59,7 +59,7 @@ export default function ProjectileMotion() {
   const [targetPos, setTargetPos] = useState({ x: 55, y: 0 }); // meters (x: distance, y: altitude)
   const [targetRadius] = useState(2.5); // meters
   const [targetScore, setTargetScore] = useState({ hits: 0, attempts: 0 });
-  const [isHitSplash, setIsHitSplash] = useState(false);
+  const [isHitActive, setIsHitActive] = useState(false);
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
   const [isDraggingAim, setIsDraggingAim] = useState(false);
   const [isDraggingCannon, setIsDraggingCannon] = useState(false);
@@ -178,7 +178,7 @@ export default function ProjectileMotion() {
     ]);
     setApexData(null);
     setLandingData(null);
-    setIsHitSplash(false);
+    setIsHitActive(false);
     lastTimestampRef.current = null;
   }, [initialSpeed, angleRad, cannonPos.x, cannonPos.y]);
 
@@ -279,7 +279,7 @@ export default function ProjectileMotion() {
             );
             if (distToTarget <= targetRadius) {
               hit = true;
-              setIsHitSplash(true);
+              setIsHitActive(true);
               setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
             }
           }
@@ -291,7 +291,7 @@ export default function ProjectileMotion() {
           const distToTargetCenter = Math.hypot(nextX - targetPos.x, nextY - targetPos.y);
           if (distToTargetCenter <= targetRadius) {
             hit = true;
-            setIsHitSplash(true);
+            setIsHitActive(true);
             setTargetScore((s) => ({ ...s, hits: s.hits + 1 }));
           }
         }
@@ -1258,20 +1258,40 @@ export default function ProjectileMotion() {
                     )}
 
                     {visualMode === 'math' ? (
-                      /* Small Red Cross */
-                      <g className="target-math-cross">
+                      /* Small Red Cross (Blinks on Target Hit) */
+                      <g className={`target-math-cross ${isHitActive ? 'is-blinking' : ''}`}>
                         <line x1="-8" y1="-8" x2="8" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
                         <line x1="8" y1="-8" x2="-8" y2="8" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" />
+                        {isHitActive && (
+                          <circle cx="0" cy="0" r="14" fill="none" stroke="#DC2626" strokeWidth="1.5" strokeDasharray="3 3" className="math-hit-pulse-ring" />
+                        )}
                       </g>
                     ) : (
-                      <>
+                      <g className={`target-physics-rings ${isHitActive ? 'is-hit-celebrate' : ''}`}>
                         {/* Outer Ring */}
                         <circle cx="0" cy="0" r={toSvgX(targetRadius) - toSvgX(0)} className="target-outer-ring" />
                         {/* Mid Ring */}
                         <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.65} className="target-mid-ring" />
                         {/* Bullseye Center */}
                         <circle cx="0" cy="0" r={(toSvgX(targetRadius) - toSvgX(0)) * 0.3} className="target-bullseye-center" />
-                      </>
+                        {isHitActive && (
+                          <g className="hit-sparks-burst">
+                            {[0, 45, 90, 135, 180, 225, 270, 315].map((ang, i) => (
+                              <line
+                                key={i}
+                                x1={8 * Math.cos((ang * Math.PI) / 180)}
+                                y1={8 * Math.sin((ang * Math.PI) / 180)}
+                                x2={22 * Math.cos((ang * Math.PI) / 180)}
+                                y2={22 * Math.sin((ang * Math.PI) / 180)}
+                                stroke="#F59E0B"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                className="spark-ray"
+                              />
+                            ))}
+                          </g>
+                        )}
+                      </g>
                     )}
 
                     {/* Label Badge with live coordinates and drag prompt */}
@@ -1298,19 +1318,6 @@ export default function ProjectileMotion() {
                       </text>
                     </g>
                   </g>
-                )}
-
-                {/* Hit Splash Burst Effect */}
-                {showTarget && isHitSplash && (
-                  <circle
-                    cx={toSvgX(targetPos.x)}
-                    cy={toSvgY(targetPos.y)}
-                    r="35"
-                    fill="none"
-                    stroke="#EF4444"
-                    strokeWidth="4"
-                    className="target-hit-splash"
-                  />
                 )}
 
                 {/* Apex Marker / Math Vertex */}

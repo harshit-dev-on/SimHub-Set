@@ -478,13 +478,70 @@
   fill: #EF4444;
 }
 
-.target-hit-splash {
-  animation: splashScale 0.6s ease-out forwards;
+/* Target Hit Effects: Math Mode Cross Blink */
+.target-math-cross.is-blinking {
+  animation: mathCrossBlink 0.22s ease-in-out 3;
 }
 
-@keyframes splashScale {
-  0% { transform: scale(0.2); opacity: 1; }
-  100% { transform: scale(2.5); opacity: 0; }
+@keyframes mathCrossBlink {
+  0%, 100% {
+    opacity: 1;
+    stroke: #DC2626;
+    filter: drop-shadow(0 0 1px transparent);
+  }
+  50% {
+    opacity: 0.15;
+    stroke: #2563EB;
+    filter: drop-shadow(0 0 8px #DC2626);
+  }
+}
+
+.math-hit-pulse-ring {
+  animation: mathRingPulse 0.7s ease-out forwards;
+  transform-origin: 0px 0px;
+}
+
+@keyframes mathRingPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Target Hit Effects: Physics Mode Target Celebration & Sparkles */
+.target-physics-rings.is-hit-celebrate {
+  animation: physicsTargetPop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-origin: 0px 0px;
+}
+
+@keyframes physicsTargetPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)); }
+  75% { transform: scale(0.95); }
+  100% { transform: scale(1); filter: none; }
+}
+
+.hit-sparks-burst {
+  animation: sparksFade 0.65s ease-out forwards;
+  transform-origin: 0px 0px;
+}
+
+.hit-sparks-burst .spark-ray {
+  animation: rayExtend 0.65s ease-out forwards;
+}
+
+@keyframes sparksFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes rayExtend {
+  0% { stroke-dasharray: 4 20; stroke-dashoffset: 0; }
+  100% { stroke-dasharray: 14 0; stroke-dashoffset: -10; }
 }
 
 /* --------------------------------------------------------------------------
