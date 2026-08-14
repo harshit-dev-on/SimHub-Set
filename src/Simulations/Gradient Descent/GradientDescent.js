@@ -1,9 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './GradientDescent.css';
 import { LOSS_FUNCTIONS, OPTIMIZERS } from './simulationMath';
+import CustomFunctionModal from './CustomFunctionModal';
+import PogoRider from './PogoRider';
 
 export default function GradientDescent() {
+  const [visualMode, setVisualMode] = useState('pogo'); // 'pogo' | 'math'
+  const [allFunctions, setAllFunctions] = useState(() => {
+    const saved = localStorage.getItem('simhub_custom_functions');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Re-compile dynamic functions from saved raw expressions
+        const recompiled = {};
+        parsed.forEach((item) => {
+          try {
+            // eslint-disable-next-line no-new-func
+            const fn = new Function('x', `"use strict"; return (${item.transformedExpr});`);
+            const derivative = (x) => {
+              const h = 1e-5;
+              return (fn(x + h) - fn(x - h)) / (2 * h);
+            };
+            recompiled[item.id] = {
+              ...item,
+              fn,
+              derivative,
+            };
+          } catch {
+            // skip corrupted item
+          }
+        });
+        return { ...LOSS_FUNCTIONS, ...recompiled };
+      } catch {
+        return LOSS_FUNCTIONS;
+      }
+    }
+    return LOSS_FUNCTIONS;
+  });
+
   const [selectedFuncKey, setSelectedFuncKey] = useState('quadratic');
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [selectedOptimizer, setSelectedOptimizer] = useState('sgd');
   const [learningRate, setLearningRate] = useState(0.15);
   const [currentX, setCurrentX] = useState(3.2);
@@ -14,9 +50,63 @@ export default function GradientDescent() {
   const [optimizerState, setOptimizerState] = useState({});
   const [statusMessage, setStatusMessage] = useState('Ready to descend');
 
-  const currentFunc = LOSS_FUNCTIONS[selectedFuncKey];
+  const currentFunc = allFunctions[selectedFuncKey] || allFunctions.quadratic;
   const currentOpt = OPTIMIZERS[selectedOptimizer];
   const timerRef = useRef(null);
+
+  const handleApplyCustomFunction = (customFuncObj) => {
+    setAllFunctions((prev) => {
+      const next = { ...prev, [customFuncObj.id]: customFuncObj };
+      // Save serializable properties to localStorage
+      try {
+        const customList = Object.values(next)
+          .filter((f) => f.isCustom)
+          .map((f) => ({
+            id: f.id,
+            name: f.name,
+            badge: f.badge,
+            badgeColor: f.badgeColor,
+            description: f.description,
+            xMin: f.xMin,
+            xMax: f.xMax,
+            yMin: f.yMin,
+            yMax: f.yMax,
+            defaultX0: f.defaultX0,
+            defaultLr: f.defaultLr,
+            latex: f.latex,
+            derivLatex: f.derivLatex,
+            optimum: f.optimum,
+            isCustom: true,
+            rawExpr: f.rawExpr,
+            transformedExpr: f.transformedExpr || f.rawExpr,
+          }));
+        localStorage.setItem('simhub_custom_functions', JSON.stringify(customList));
+      } catch {
+        // ignore localStorage errors
+      }
+      return next;
+    });
+
+    setSelectedFuncKey(customFuncObj.id);
+  };
+
+  const handleDeleteCustomFunc = (e, funcId) => {
+    e.stopPropagation();
+    setAllFunctions((prev) => {
+      const next = { ...prev };
+      delete next[funcId];
+      try {
+        const customList = Object.values(next).filter((f) => f.isCustom);
+        localStorage.setItem('simhub_custom_functions', JSON.stringify(customList));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    if (selectedFuncKey === funcId) {
+      setSelectedFuncKey('quadratic');
+    }
+  };
 
   // Initialize or reset state on function change
   const resetSimulation = useCallback((newX0 = null) => {
@@ -177,10 +267,30 @@ export default function GradientDescent() {
             {currentFunc.badge}
           </span>
           <span className="gd-badge-status">{statusMessage}</span>
+
+          {/* Mode Switcher Toggle: Pogo Hills vs Math Studio */}
+          <div className="visual-mode-toggle-pill">
+            <button
+              className={`vm-toggle-btn ${visualMode === 'pogo' ? 'active' : ''}`}
+              onClick={() => setVisualMode('pogo')}
+            >
+              🌿 Pogo Hills
+            </button>
+            <button
+              className={`vm-toggle-btn ${visualMode === 'math' ? 'active' : ''}`}
+              onClick={() => setVisualMode('math')}
+            >
+              📊 Math Studio
+            </button>
+          </div>
         </div>
-        <h1 className="gd-title">Gradient Descent Interactive Studio</h1>
+        <h1 className="gd-title">
+          {visualMode === 'pogo' ? 'Pogo Stick Gradient Descent Adventure' : 'Gradient Descent Interactive Studio'}
+        </h1>
         <p className="gd-subtitle">
-          Watch parameters iteratively slide down the loss slope $\nabla f(w)$ to minimize cost.
+          {visualMode === 'pogo'
+            ? 'Help the Pogo Rider bounce down the green hills to find the lowest valley (global minimum)!'
+            : 'Watch parameters iteratively slide down the loss slope ∇f(w) to minimize cost.'}
         </p>
       </header>
 
@@ -190,22 +300,24 @@ export default function GradientDescent() {
         <div className="gd-visualizer-card">
           <div className="card-header-bar">
             <div>
-              <h3 className="card-sec-title">Loss Landscape f(w)</h3>
-              <span className="card-instruction-hint">Click anywhere on the curve to reposition ball</span>
+              <h3 className="card-sec-title">
+                {visualMode === 'pogo' ? 'Grassy Hills Terrain' : 'Loss Landscape f(w)'}
+              </h3>
+              <span className="card-instruction-hint">Click anywhere on the hills to drop the Pogo Rider</span>
             </div>
             <div className="optimum-indicator">
-              Target Min: <strong>w ≈ {currentFunc.optimum}</strong>
+              {visualMode === 'pogo' ? 'Lowest Valley: ' : 'Target Min: '}
+              <strong>w ≈ {currentFunc.optimum}</strong>
             </div>
           </div>
 
-          {/* SVG Loss Curve Plot */}
-          <div className="svg-plot-wrapper">
+          {/* SVG Loss Curve / Green Hills Plot */}
+          <div className={`svg-plot-wrapper ${visualMode === 'pogo' ? 'pogo-theme-wrapper' : ''}`}>
             <svg
               className="loss-landscape-svg"
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               onClick={handleSvgClick}
             >
-              {/* Subtle Grid Background */}
               <defs>
                 <pattern id="gdGrid" width="40" height="40" patternUnits="userSpaceOnUse">
                   <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="1" />
@@ -218,12 +330,43 @@ export default function GradientDescent() {
                   <stop offset="0%" stopColor="#EE7258" />
                   <stop offset="100%" stopColor="#D84F33" />
                 </linearGradient>
+
+                {/* Green Hills & Sky Gradients */}
+                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#BAE6FD" />
+                  <stop offset="55%" stopColor="#E0F2FE" />
+                  <stop offset="100%" stopColor="#FAF2D8" />
+                </linearGradient>
+                <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#66BB6A" />
+                  <stop offset="12%" stopColor="#43A047" />
+                  <stop offset="35%" stopColor="#2E7D32" />
+                  <stop offset="55%" stopColor="#6D4C41" />
+                  <stop offset="100%" stopColor="#3E2723" />
+                </linearGradient>
               </defs>
 
-              <rect width={svgWidth} height={svgHeight} fill="url(#gdGrid)" rx="16" />
+              {/* Sky / Grid Background */}
+              {visualMode === 'pogo' ? (
+                <g className="pogo-sky-group">
+                  <rect width={svgWidth} height={svgHeight} fill="url(#skyGrad)" rx="16" />
+                  {/* Cartoon Sun */}
+                  <circle cx={svgWidth - 65} cy={45} r="22" fill="#FDE047" opacity="0.9" />
+                  <circle cx={svgWidth - 65} cy={45} r="30" fill="#FEF08A" opacity="0.3" className="sun-pulse" />
+                  {/* Fluffy Clouds */}
+                  <g opacity="0.75" transform="translate(60, 30) scale(0.6)">
+                    <path d="M 0 20 Q 15 0 35 15 Q 55 0 75 15 Q 95 10 95 25 Q 95 40 75 40 L 15 40 Q 0 40 0 20 Z" fill="#FFFFFF" />
+                  </g>
+                  <g opacity="0.6" transform="translate(260, 45) scale(0.45)">
+                    <path d="M 0 20 Q 15 0 35 15 Q 55 0 75 15 Q 95 10 95 25 Q 95 40 75 40 L 15 40 Q 0 40 0 20 Z" fill="#FFFFFF" />
+                  </g>
+                </g>
+              ) : (
+                <rect width={svgWidth} height={svgHeight} fill="url(#gdGrid)" rx="16" />
+              )}
 
-              {/* Zero reference axis */}
-              {currentFunc.yMin <= 0 && currentFunc.yMax >= 0 && (
+              {/* Zero reference axis in Math Mode */}
+              {visualMode === 'math' && currentFunc.yMin <= 0 && currentFunc.yMax >= 0 && (
                 <line
                   x1={padding.left}
                   y1={scaleY(0)}
@@ -234,20 +377,53 @@ export default function GradientDescent() {
                 />
               )}
 
-              {/* Shaded Area Under Curve */}
-              <path
-                d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight - padding.bottom} L ${scaleX(currentFunc.xMin)} ${svgHeight - padding.bottom} Z`}
-                fill="url(#curveFillGrad)"
-              />
-
-              {/* Loss Function Curve */}
-              <path
-                d={curvePathD}
-                fill="none"
-                stroke="#1B1C20"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
+              {/* Green Hills Earth Fill / Area Under Curve */}
+              {visualMode === 'pogo' ? (
+                <g className="green-hills-ground">
+                  {/* Subterranean Earth Fill */}
+                  <path
+                    d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight + 20} L ${scaleX(currentFunc.xMin)} ${svgHeight + 20} Z`}
+                    fill="url(#grassGrad)"
+                  />
+                  {/* Top Lush Grass Ridge */}
+                  <path
+                    d={curvePathD}
+                    fill="none"
+                    stroke="#81C784"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={curvePathD}
+                    fill="none"
+                    stroke="#2E7D32"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  {/* Goal Minima Flag 🚩 */}
+                  {currentFunc.optimum !== undefined && (
+                    <g transform={`translate(${scaleX(currentFunc.optimum)}, ${scaleY(currentFunc.fn(currentFunc.optimum))})`}>
+                      <line x1="0" y1="0" x2="0" y2="-28" stroke="#37474F" strokeWidth="2.5" strokeLinecap="round" />
+                      <polygon points="0,-28 16,-22 0,-16" fill="#EF4444" />
+                      <circle cx="0" cy="-29" r="2" fill="#F59E0B" />
+                    </g>
+                  )}
+                </g>
+              ) : (
+                <>
+                  <path
+                    d={`${curvePathD} L ${scaleX(currentFunc.xMax)} ${svgHeight - padding.bottom} L ${scaleX(currentFunc.xMin)} ${svgHeight - padding.bottom} Z`}
+                    fill="url(#curveFillGrad)"
+                  />
+                  <path
+                    d={curvePathD}
+                    fill="none"
+                    stroke="#1B1C20"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </>
+              )}
 
               {/* Descent History Trajectory Line & Step Markers */}
               {history.length > 1 && (
@@ -262,10 +438,10 @@ export default function GradientDescent() {
                         y1={scaleY(prev.y)}
                         x2={scaleX(pt.x)}
                         y2={scaleY(pt.y)}
-                        stroke="#EE7258"
-                        strokeWidth="2.5"
-                        strokeDasharray="3 3"
-                        opacity="0.75"
+                        stroke={visualMode === 'pogo' ? '#F7D25A' : '#EE7258'}
+                        strokeWidth={visualMode === 'pogo' ? '3' : '2.5'}
+                        strokeDasharray={visualMode === 'pogo' ? '4 3' : '3 3'}
+                        opacity="0.85"
                       />
                     );
                   })}
@@ -275,8 +451,10 @@ export default function GradientDescent() {
                       cx={scaleX(pt.x)}
                       cy={scaleY(pt.y)}
                       r={i === history.length - 1 ? 0 : 3.5}
-                      fill="#EE7258"
-                      opacity="0.8"
+                      fill={visualMode === 'pogo' ? '#F7D25A' : '#EE7258'}
+                      stroke={visualMode === 'pogo' ? '#333' : 'none'}
+                      strokeWidth={visualMode === 'pogo' ? '1' : '0'}
+                      opacity="0.9"
                     />
                   ))}
                 </g>
@@ -288,7 +466,7 @@ export default function GradientDescent() {
                 y1={scaleY(tanY1)}
                 x2={scaleX(tanX2)}
                 y2={scaleY(tanY2)}
-                stroke="#2B7DE9"
+                stroke={visualMode === 'pogo' ? 'rgba(33, 150, 243, 0.6)' : '#2B7DE9'}
                 strokeWidth="2"
                 strokeDasharray="4 3"
               />
@@ -301,28 +479,63 @@ export default function GradientDescent() {
                 y2={scaleY(currentY)}
                 stroke="#EE7258"
                 strokeWidth="3"
-                markerEnd="url(#arrowhead)"
               />
 
-              {/* Current Animated Ball / Particle */}
-              <g
-                className="animated-gradient-ball"
-                style={{
-                  transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
-                  transition: isRunning ? 'none' : 'transform 0.15s ease',
-                }}
-              >
-                {/* Glow ring */}
-                <circle r="14" fill="#EE7258" opacity="0.25" className="ball-pulsar" />
-                <circle r="8" fill="url(#ballGlow)" stroke="#FFFFFF" strokeWidth="2.5" />
-              </g>
+              {/* Pogo Stick Man OR Animated Glow Ball */}
+              {visualMode === 'pogo' ? (
+                <g
+                  className="pogo-rider-anchor"
+                  style={{
+                    transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
+                    transition: isRunning ? 'none' : 'transform 0.15s ease',
+                  }}
+                >
+                  <PogoRider
+                    slope={currentGrad}
+                    isBouncing={isRunning}
+                    direction={currentGrad > 0 ? -1 : 1}
+                    scale={0.9}
+                    showSpeechBubble={true}
+                    speechText={
+                      Math.abs(currentGrad) < 0.005
+                        ? 'Valley reached! 🏁'
+                        : isRunning
+                        ? 'Boing! 💨'
+                        : Math.abs(currentGrad) > 3
+                        ? 'Steep hill! ⚠️'
+                        : 'Ready to bounce!'
+                    }
+                  />
+                </g>
+              ) : (
+                <g
+                  className="animated-gradient-ball"
+                  style={{
+                    transform: `translate(${scaleX(currentX)}px, ${scaleY(currentY)}px)`,
+                    transition: isRunning ? 'none' : 'transform 0.15s ease',
+                  }}
+                >
+                  <circle r="14" fill="#EE7258" opacity="0.25" className="ball-pulsar" />
+                  <circle r="8" fill="url(#ballGlow)" stroke="#FFFFFF" strokeWidth="2.5" />
+                </g>
+              )}
 
               {/* X and Y Axis Labels */}
-              <text x={svgWidth - padding.right} y={svgHeight - 12} textAnchor="end" className="axis-label">
-                Parameter (w)
+              <text
+                x={svgWidth - padding.right}
+                y={svgHeight - 12}
+                textAnchor="end"
+                className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
+              >
+                {visualMode === 'pogo' ? 'Position (w) ➔' : 'Parameter (w)'}
               </text>
-              <text x={padding.left - 10} y={padding.top - 10} textAnchor="start" className="axis-label">
-                Cost f(w)
+              <text
+                x={padding.left - 10}
+                y={padding.top - 10}
+                textAnchor="start"
+                className={`axis-label ${visualMode === 'pogo' ? 'pogo-axis-label' : ''}`}
+              >
+                {visualMode === 'pogo' ? 'Altitude (Cost)' : 'Cost f(w)'}
               </text>
             </svg>
           </div>
@@ -352,17 +565,38 @@ export default function GradientDescent() {
 
         {/* Right Column: Controls, Math Blackboard & Intuition */}
         <div className="gd-controls-column">
-          {/* Landscape Preset Selector */}
+          {/* Landscape Preset Selector with Custom Function Trigger */}
           <div className="bento-subcard surface-cream">
-            <label className="bento-label">Select Loss Function</label>
+            <div className="card-top-row">
+              <label className="bento-label">Select Loss Function</label>
+              <button
+                type="button"
+                className="add-custom-fn-trigger-btn"
+                onClick={() => setIsCustomModalOpen(true)}
+              >
+                ✨ + Custom Function
+              </button>
+            </div>
+
             <div className="preset-pill-grid">
-              {Object.values(LOSS_FUNCTIONS).map((fn) => (
+              {Object.values(allFunctions).map((fn) => (
                 <button
                   key={fn.id}
-                  className={`preset-btn ${selectedFuncKey === fn.id ? 'active' : ''}`}
+                  className={`preset-btn ${selectedFuncKey === fn.id ? 'active' : ''} ${
+                    fn.isCustom ? 'custom-func-pill' : ''
+                  }`}
                   onClick={() => setSelectedFuncKey(fn.id)}
                 >
                   <span className="preset-name">{fn.name}</span>
+                  {fn.isCustom && (
+                    <span
+                      className="delete-custom-pill-btn"
+                      title="Delete function"
+                      onClick={(e) => handleDeleteCustomFunc(e, fn.id)}
+                    >
+                      ×
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -515,6 +749,13 @@ export default function GradientDescent() {
           </div>
         </div>
       </div>
+
+      {/* Custom Math Function Modal Builder */}
+      <CustomFunctionModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+        onApplyCustomFunction={handleApplyCustomFunction}
+      />
     </div>
   );
 }
