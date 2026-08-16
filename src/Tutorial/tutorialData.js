@@ -14,7 +14,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Getting Started',
         expression: 'EXPLAINING',
         speech:
-          "Hoo-hoo! 👋 Welcome to **SimHub**! I'm **Professor Quark**, your personal STEM laboratory companion. Here, we don't just read dry formulas—we **touch, manipulate, and visualize** math and science in real-time!",
+          "Waddle-waddle! 🐧 Welcome to **SimHub**! I'm **Professor Piplu**, your personal STEM laboratory companion. Here, we don't just read dry formulas—we **touch, manipulate, and visualize** math and science in real-time!",
         actionPrompt: 'Pick any of the 4 labs on screen to begin exploring, or tap Next to take a quick tour!',
       },
       {

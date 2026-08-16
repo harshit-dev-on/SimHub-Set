@@ -156,7 +156,7 @@ function App() {
             type="button"
             className={`tutorial-toggle-btn ${isTutorialOpen ? 'is-tutorial-active' : ''}`}
             onClick={() => setIsTutorialOpen((prev) => !prev)}
-            title={isTutorialOpen ? 'Hide Tutorial Mode' : 'Start Interactive Tutorial with Professor Quark'}
+            title={isTutorialOpen ? 'Hide Tutorial Mode' : 'Start Interactive Tutorial with Professor Piplu'}
             aria-label="Toggle Interactive Tutorial Mode"
           >
             <span className="tutorial-btn-icon">🎓</span>

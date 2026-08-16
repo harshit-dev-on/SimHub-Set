@@ -96,11 +96,11 @@ export function TutorialCompanion({
       <div
         className="tutorial-minimized-badge"
         onClick={() => setIsMinimized(false)}
-        title="Click to resume Professor Quark's tutorial"
+        title="Click to resume Professor Piplu's tutorial"
       >
         <ProfessorQuarkAvatar expression={activeExpression} size={42} />
         <div className="minimized-text-group">
-          <strong className="minimized-name">Prof. Quark</strong>
+          <strong className="minimized-name">Prof. Piplu 🐧</strong>
           <span className="minimized-step">
             Lesson {currentStepIndex + 1}/{totalSteps} • Tap to Expand
           </span>
@@ -174,7 +174,7 @@ export function TutorialCompanion({
           <div className="tutorial-character-col">
             <ProfessorQuarkAvatar expression={activeExpression} size={110} />
             <div className="character-nameplate">
-              <strong>Prof. Quark</strong>
+              <strong>Prof. Piplu 🐧</strong>
               <span>STEM Tutor</span>
             </div>
           </div>
