@@ -1019,19 +1019,31 @@ export default function GradientDescent() {
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'math') && (
             <div className="bento-subcard surface-yellow">
               <div className="card-top-row">
-                <h4 className="yellow-card-title">Live Update Formula</h4>
+                <h4 className="yellow-card-title">Live Update Formula & Calculus</h4>
                 <span className="doodle-accent-badge">Instant Calculus</span>
+              </div>
+
+              {/* Active Function & Derivative Strip */}
+              <div className="landscape-formula-banner" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid #E2D9C8', borderRadius: '8px', padding: '6px 10px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', fontFamily: "'Fira Code', monospace" }}>
+                  <span style={{ color: '#64748B', fontWeight: '700' }}>Loss Function:</span>
+                  <span style={{ color: '#0F172A', fontWeight: '800' }}>{currentFunc.readableFormula || currentFunc.name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', fontFamily: "'Fira Code', monospace" }}>
+                  <span style={{ color: '#64748B', fontWeight: '700' }}>Derivative f'(x):</span>
+                  <span style={{ color: '#D97706', fontWeight: '800' }}>{currentFunc.derivReadable || "f'(x)"}</span>
+                </div>
               </div>
 
               <div className="math-equation-box">
                 <div className="formula-row">
-                  <span className="math-token variable">w_new</span>
+                  <span className="math-token variable">wₜ₊₁</span>
                   <span className="math-token operator">=</span>
-                  <span className="math-token current">w_old</span>
+                  <span className="math-token current">wₜ</span>
                   <span className="math-token operator">−</span>
                   <span className="math-token lr">α</span>
                   <span className="math-token operator">×</span>
-                  <span className="math-token grad">f'(w_old)</span>
+                  <span className="math-token grad">f'(wₜ)</span>
                 </div>
 
                 <div className="formula-substitution-row">

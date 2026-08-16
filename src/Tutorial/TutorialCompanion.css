@@ -208,8 +208,11 @@
 }
 
 .speech-highlight {
-  color: #15803D;
+  color: #0369A1;
   font-weight: 800;
+  background: rgba(56, 189, 248, 0.14);
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* Action Prompt Card */

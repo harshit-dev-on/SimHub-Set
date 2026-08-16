@@ -119,6 +119,8 @@ export const LOSS_FUNCTIONS = {
     defaultLr: 0.15,
     fn: (x) => x * x,
     derivative: (x) => 2 * x,
+    readableFormula: 'f(x) = x²',
+    derivReadable: "f'(x) = 2x",
     latex: 'f(x) = x^2',
     derivLatex: "f'(x) = 2x",
     optimum: 0,
@@ -137,6 +139,8 @@ export const LOSS_FUNCTIONS = {
     defaultLr: 0.08,
     fn: (x) => Math.pow(x, 4) - 3 * Math.pow(x, 2) + 0.5 * x,
     derivative: (x) => 4 * Math.pow(x, 3) - 6 * x + 0.5,
+    readableFormula: 'f(x) = x⁴ − 3x² + 0.5x',
+    derivReadable: "f'(x) = 4x³ − 6x + 0.5",
     latex: 'f(x) = x^4 - 3x^2 + 0.5x',
     derivLatex: "f'(x) = 4x^3 - 6x + 0.5",
     optimum: -1.3,
@@ -155,6 +159,8 @@ export const LOSS_FUNCTIONS = {
     defaultLr: 0.25,
     fn: (x) => Math.log(1 + Math.exp(x * 0.8)) + 0.1 * Math.sin(x * 3),
     derivative: (x) => (0.8 * Math.exp(x * 0.8)) / (1 + Math.exp(x * 0.8)) + 0.3 * Math.cos(x * 3),
+    readableFormula: 'f(x) = ln(1 + e^{0.8x}) + 0.1·sin(3x)',
+    derivReadable: "f'(x) = [0.8·e^{0.8x} / (1 + e^{0.8x})] + 0.3·cos(3x)",
     latex: 'f(x) = \\ln(1 + e^{0.8x}) + 0.1\\sin(3x)',
     derivLatex: "f'(x) = \\frac{0.8e^{0.8x}}{1+e^{0.8x}} + 0.3\\cos(3x)",
     optimum: -3.8,
@@ -173,6 +179,8 @@ export const LOSS_FUNCTIONS = {
     defaultLr: 0.06,
     fn: (x) => (x < 0 ? 2 * Math.pow(x, 2) + Math.abs(x) * 1.5 : 0.5 * Math.pow(x, 2)),
     derivative: (x) => (x < 0 ? 4 * x - 1.5 : x),
+    readableFormula: 'f(x) = 2x² + 1.5|x| (for x < 0)  |  0.5x² (for x ≥ 0)',
+    derivReadable: "f'(x) = 4x − 1.5 (for x < 0)  |  x (for x ≥ 0)",
     latex: "f(x) = \\begin{cases} 2x^2 + 1.5|x| & x < 0 \\\\ 0.5x^2 & x \\ge 0 \\end{cases}",
     derivLatex: "f'(x) = \\begin{cases} 4x - 1.5 & x < 0 \\\\ x & x \\ge 0 \\end{cases}",
     optimum: 0,
@@ -183,7 +191,7 @@ export const OPTIMIZERS = {
   sgd: {
     id: 'sgd',
     name: 'Standard GD',
-    formula: 'w_{t+1} = w_t - \\alpha \\cdot \\nabla f(w_t)',
+    formula: 'wₜ₊₁ = wₜ − α · ∇f(wₜ)',
     description: 'Direct step in opposite direction of the gradient.',
     update: (x, grad, lr) => {
       const step = lr * grad;
@@ -193,7 +201,7 @@ export const OPTIMIZERS = {
   momentum: {
     id: 'momentum',
     name: 'Momentum (β = 0.85)',
-    formula: 'v_{t+1} = \\beta v_t + \\alpha \\nabla f(w_t), \\; w_{t+1} = w_t - v_{t+1}',
+    formula: 'vₜ₊₁ = β·vₜ + α·∇f(wₜ)  |  wₜ₊₁ = wₜ − vₜ₊₁',
     description: 'Builds velocity in consistent directions to escape plateaus and reduce oscillations.',
     update: (x, grad, lr, state = {}) => {
       const beta = 0.85;
@@ -204,7 +212,7 @@ export const OPTIMIZERS = {
   adam: {
     id: 'adam',
     name: 'Adam (Adaptive)',
-    formula: 'm_t = \\beta_1 m_{t-1} + (1-\\beta_1)g, \\; v_t = \\beta_2 v_{t-1} + (1-\\beta_2)g^2',
+    formula: 'mₜ = β₁·mₜ₋₁ + (1−β₁)g  |  vₜ = β₂·vₜ₋₁ + (1−β₂)g²',
     description: 'Maintains running averages of both gradients and second moments for adaptive steps.',
     update: (x, grad, lr, state = {}) => {
       const beta1 = 0.9;

@@ -11,7 +11,7 @@ function HomePage({ onSelectSimulation }) {
       cardClass: 'card-gradient-descent',
       btnClass: 'btn-gd',
       category: 'Machine Learning & Optimization',
-      equation: 'w_{t+1} = w_t - η ∇L(w_t) + β(w_t - w_{t-1})',
+      equation: 'wₜ₊₁ = wₜ − η·∇L(wₜ) + β·vₜ',
       description:
         'Explore 2D and 3D loss surfaces, non-convex double wells, learning rates (η), and momentum dynamics with step-by-step convergence telemetry.',
       tags: ['Loss Landscapes', 'Momentum β', 'Learning Rate η', 'Saddle Points'],
@@ -24,7 +24,7 @@ function HomePage({ onSelectSimulation }) {
       cardClass: 'card-monty-hall',
       btnClass: 'btn-mh',
       category: 'Probability & Game Theory',
-      equation: 'P(Win | Switch) = 2/3 ≈ 66.7%',
+      equation: 'P(Win | Switch) = (N−1)/N ≈ 66.7%',
       description:
         'Test the famous 3-door probability paradox through interactive single-play reveals and high-speed Monte Carlo batch simulations (N = 10,000).',
       tags: ['Bayesian Updating', 'Monte Carlo N=10k', 'Win-Rate Convergence', 'Streaks'],
@@ -37,7 +37,7 @@ function HomePage({ onSelectSimulation }) {
       cardClass: 'card-projectile-motion',
       btnClass: 'btn-pm',
       category: 'Classical Mechanics & Kinematics',
-      equation: 'y(t) = y_0 + v_{0y}t - ½gt²  |  v_t = √(mg/k)',
+      equation: 'y(t) = y₀ + v₀ᵧt − ½gt²  |  R = (v₀²sin 2θ)/g',
       description:
         'Freeform ballistic sandbox with draggable cannon and floating targets. Features quadratic air drag, wind resistance, and 6 live telemetry graphs.',
       tags: ['Draggable Target', 'Air Drag & Wind', '6 Live Graphs', 'Energy Conservation'],
@@ -50,7 +50,7 @@ function HomePage({ onSelectSimulation }) {
       cardClass: 'card-electron-clouding',
       btnClass: 'btn-ec',
       category: 'Quantum Mechanics & Chemistry',
-      equation: 'ψ_{nlm}(r, θ, φ) = R_{nl}(r) · Y_{lm}(θ, φ)',
+      equation: 'ψₙₗₘ(r, θ, φ) = Rₙₗ(r) · Yₗₘ(θ, φ)',
       description:
         'Interactive 3D Three.js WebGL Hydrogen orbitals (n = 1..4). Features 40,000-point probability clouds, 90% boundary lobes, and Rydberg spectral transitions.',
       tags: ['3D WebGL (n=1..4)', 'Monte Carlo Cloud', 'Isosurface Lobes', 'Spectral Jump'],

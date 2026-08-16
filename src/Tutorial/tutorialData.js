@@ -1,5 +1,6 @@
 // ============================================================================
 // SimHub Tutorial Curriculums & Duolingo-Style Lesson Content
+// Clean mathematical unicode and clear pedagogical explanations
 // ============================================================================
 
 export const TUTORIAL_CURRICULUMS = {
@@ -67,7 +68,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Core Intuition',
         expression: 'EXPLAINING',
         speech:
-          "Imagine being blindfolded on a foggy mountain and wanting to reach the lowest valley floor. 🏔️\n\nHow would you do it? You'd feel the slope under your feet and take a step in the **steepest downhill direction**! That is exactly what **Gradient Descent** does by following the negative gradient: **-∇L(θ)**.",
+          "Imagine being blindfolded on a foggy mountain and wanting to reach the lowest valley floor. 🏔️\n\nHow would you do it? You'd feel the slope under your feet and take a step in the **steepest downhill direction**! That is exactly what **Gradient Descent** does by following the negative gradient vector: **−∇L(θ)**.",
         actionPrompt: 'Click anywhere on the 2D contour map to drop your starting position!',
       },
       {
@@ -76,7 +77,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Parameter Tuning',
         expression: 'THINKING',
         speech:
-          "The **Learning Rate (η)** determines your step size:\n\n• **Too small (e.g. 0.005)**: Convergence is painfully slow. You might get stuck forever.\n• **Too large (e.g. 0.9)**: The optimizer overshoots the minimum and explodes into instability!\n\nFinding the sweet spot is the art of hyperparameter tuning.",
+          "The **Learning Rate (η)** determines your step size in the update equation **θ_{t+1} = θ_t − η · ∇L(θ_t)**:\n\n• **Too small (e.g. η = 0.005)**: Convergence is painfully slow. You might get stuck forever.\n• **Too large (e.g. η = 0.9)**: The optimizer overshoots the minimum and explodes into instability!\n\nFinding the sweet spot is the art of hyperparameter tuning.",
         actionPrompt: 'Try dragging the Learning Rate slider to 0.05 vs 0.5 to see the difference!',
       },
       {
@@ -85,7 +86,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Advanced Algorithms',
         expression: 'EUREKA',
         speech:
-          "Real-world loss surfaces aren't simple bowls—they have **local minima** and shallow saddles! 🎢\n\nBy adding **Momentum (β)**, the optimizer builds physical velocity like a heavy rolling ball, allowing it to blast right through shallow local traps and oscillate less across steep ravines.",
+          "Real-world loss surfaces aren't simple bowls—they have **local minima** and shallow saddles! 🎢\n\nBy adding **Momentum (β)** via **v_{t+1} = β · v_t + η · ∇L(θ)**, the optimizer builds physical velocity like a heavy rolling ball, allowing it to blast right through shallow local traps and oscillate less across steep ravines.",
         actionPrompt: 'Switch the landscape to Rastrigin Multimodal and try Adam optimizer!',
       },
       {
@@ -105,7 +106,7 @@ export const TUTORIAL_CURRICULUMS = {
           ],
           correctIndex: 0,
           explanation:
-            'Brilliant! ∇L points uphill toward the steepest increase. That is why we subtract it (θ - η·∇L) to walk downhill!',
+            'Brilliant! ∇L points uphill toward steepest ascent. That is why we subtract it (θ − η · ∇L) to step downhill toward the minimum!',
         },
       },
     ],
@@ -122,7 +123,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Initial Odds',
         expression: 'EXPLAINING',
         speech:
-          "Welcome to the game show! 🎪 Behind one door is a luxury **Sports Car** 🏎️; behind the other two are **Goats** 🐐.\n\nWhen you make your initial blind pick, your chance of picking the car is exactly **1 in 3 (33.3%)**. The remaining **2 in 3 (66.7%)** chance lies with the other two doors.",
+          "Welcome to the game show! 🎪 Behind one door is a luxury **Sports Car** 🏎️; behind the other two are **Goats** 🐐.\n\nWhen you make your initial blind pick, your chance of picking the car is exactly **P(Initial) = 1/3 (33.3%)**. The remaining **2/3 (66.7%)** chance lies with the other two doors.",
         actionPrompt: 'Click any of the 3 doors on screen to place your first bet!',
       },
       {
@@ -131,7 +132,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Bayesian Filter',
         expression: 'EUREKA',
         speech:
-          "Here is the magic twist! Host Monty Hall **knows where the car is** and will **never open the car door**.\n\nWhen he reveals a goat, his knowledge acts as a filter: all of that initial **2/3 probability** gets concentrated entirely into the single remaining unopened door!",
+          "Here is the magic twist! Host Monty Hall **knows where the car is** and will **never open the car door**.\n\nWhen he reveals a goat, his knowledge acts as an asymmetric filter: all of that initial **2/3 probability** gets concentrated entirely into the single remaining unopened door: **P(Car | Switch) = 2/3**!",
       },
       {
         id: 'monty-100doors',
@@ -139,7 +140,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Mental Model',
         expression: 'THINKING',
         speech:
-          "Still skeptical? Imagine **100 Doors**! 🚪\n\nYou pick Door #1 (a tiny **1% chance**). Monty opens **98 goat doors**, leaving only Door #77.\n\nDid your blind guess magically hit the 1% car, or did Monty's filter funnel the **99% probability** into Door #77? Always switch!",
+          "Still skeptical? Imagine **100 Doors (N = 100)**! 🚪\n\nYou pick Door #1 (a tiny **1% chance: P = 1/100**). Monty opens **98 goat doors**, leaving only Door #77.\n\nDid your blind guess magically hit the 1% car, or did Monty's filter funnel the **99% probability (99/100)** into Door #77? Always switch!",
         actionPrompt: 'Use the Doors (N) stepper at the bottom to set N=100 and test this yourself!',
       },
       {
@@ -151,11 +152,11 @@ export const TUTORIAL_CURRICULUMS = {
           "Let's see if you can outsmart the 1,000 PhD mathematicians who wrote letters criticizing Marilyn vos Savant!",
         quiz: {
           question:
-            'If there are 10 doors and Monty opens 8 goat doors, what is your win probability if you SWITCH to the remaining door?',
+            'If there are 10 doors (N = 10) and Monty opens 8 goat doors, what is your win probability if you SWITCH to the remaining door?',
           options: [
             '50% (because only 2 doors are left)',
-            '90% (or 9/10 probability)',
-            '10% (same as initial pick)',
+            '90% (or 9/10 probability: (N−1)/N)',
+            '10% (same as initial pick: 1/N)',
             '33.3%',
           ],
           correctIndex: 1,
@@ -177,7 +178,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Vector Orthogonality',
         expression: 'EXPLAINING',
         speech:
-          "In classical mechanics, horizontal and vertical motion are completely **independent**! 🚀\n\n• **Horizontal**: No forces act ($a_x = 0$), so $v_x$ remains constant forever.\n• **Vertical**: Gravity pulls downward ($a_y = -g$), causing $v_y$ to decelerate, hit zero at the apex, and accelerate downward.",
+          "In classical mechanics, horizontal and vertical motion are completely **independent**! 🚀\n\n• **Horizontal**: No forces act (aₓ = 0), so **vₓ = v₀ · cos(θ)** remains constant forever.\n• **Vertical**: Gravity pulls downward (aᵧ = −g), so **vᵧ(t) = v₀ · sin(θ) − g · t** decelerates, hits zero at the apex, and accelerates downward.",
         actionPrompt: 'Click and drag the cannon nozzle to aim, or tap Fire to launch your first shot!',
       },
       {
@@ -186,7 +187,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Calculus Optimization',
         expression: 'EUREKA',
         speech:
-          "Why is **45°** the magic launch angle for maximum distance?\n\nThe range formula is **R = (v₀² · sin(2θ)) / g**. The sine function reaches its maximum of **1.0** when its argument is **90°**. Since $2θ = 90°$, $\\mathbf{θ = 45°}$ delivers the maximum possible range on flat ground!",
+          "Why is **θ = 45°** the magic launch angle for maximum distance?\n\nThe range formula on flat ground is **R = (v₀² · sin(2θ)) / g**. The sine function reaches its maximum value of **1.0** when its argument is **90°**. Since **2θ = 90°**, setting **θ = 45°** delivers the maximum possible range!",
         actionPrompt: 'Use the angle slider to test 45° vs 30° vs 60° and observe the landing markers!',
       },
       {
@@ -195,7 +196,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Space Physics',
         expression: 'THINKING',
         speech:
-          "Gravity dictates how tightly curved your parabolic arc will be:\n\n• 🌕 **Moon (1.6 m/s²)**: Ultra-low gravity allows massive, soaring high-altitude arcs.\n• 🪐 **Jupiter (24.8 m/s²)**: Crushing gravity slams projectiles into the ground almost immediately!\n• 💨 **Air Drag**: Asymmetry causes steep drops near the end of flight.",
+          "Gravity dictates how tightly curved your parabolic arc will be:\n\n• 🌕 **Moon (g = 1.62 m/s²)**: Ultra-low gravity allows massive, soaring high-altitude arcs.\n• 🪐 **Jupiter (g = 24.79 m/s²)**: Crushing gravity slams projectiles into the ground almost immediately!\n• 💨 **Air Drag**: Asymmetric quadratic resistance (F_drag ∝ v²) causes steep drops near the end of flight.",
         actionPrompt: 'Switch the celestial gravity dropdown to Moon or Jupiter to compare trajectory shapes!',
       },
       {
@@ -210,13 +211,13 @@ export const TUTORIAL_CURRICULUMS = {
             'At the very apex (highest point) of a projectile’s flight, which of the following is true?',
           options: [
             'Total velocity is zero (v = 0)',
-            'Vertical velocity is zero (vy = 0), but horizontal velocity (vx) is unchanged',
-            'Gravity stops acting on the projectile',
-            'Acceleration becomes zero',
+            'Vertical velocity is zero (vᵧ = 0), but horizontal velocity (vₓ) is unchanged',
+            'Gravity stops acting on the projectile (g = 0)',
+            'Acceleration becomes zero (a = 0)',
           ],
           correctIndex: 1,
           explanation:
-            'Bullseye! At the peak, vertical velocity momentarily reaches vy = 0 before reversing, while horizontal velocity vx continues unhindered!',
+            'Bullseye! At the peak, vertical velocity momentarily reaches vᵧ = 0 before reversing, while horizontal velocity vₓ continues unhindered!',
         },
       },
     ],
@@ -233,7 +234,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Wave-Particle Duality',
         expression: 'EXPLAINING',
         speech:
-          "Forget the old solar-system model where electrons orbit like planets! ⚛️\n\nBy Heisenberg's Uncertainty Principle, an electron has no fixed path. Instead, it exists as a **3D Probability Cloud** described by the wavefunction **ψ(r, θ, φ)**, where **|ψ|²** is the probability density of finding the electron at that point.",
+          "Forget the old solar-system model where electrons orbit like little planets! ⚛️\n\nBy Heisenberg's Uncertainty Principle, an electron has no fixed trajectory. Instead, it exists as a **3D Probability Cloud** described by the spatial wavefunction **ψ(r, θ, φ)**, where **P = |ψ|²** is the probability density of finding the electron at that point.",
         actionPrompt: 'Click and drag in 3D space with 1 finger to rotate the orbital, or 2 fingers to pinch-to-zoom!',
       },
       {
@@ -242,8 +243,8 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Quantum Anatomy',
         expression: 'EUREKA',
         speech:
-          "Every orbital state is uniquely defined by three integers **(n, l, ml)**:\n\n• **n (Principal, 1..4)**: Energy level & shell size.\n• **l (Angular Momentum, 0..n-1)**: Orbital shape — **s** (spherical), **p** (dumbbells), **d** (four-leaf clovers), **f** (eight lobes)!\n• **ml (Magnetic, -l..+l)**: Spatial orientation in 3D.",
-        actionPrompt: 'Use the n, l, ml steppers to jump between 1s, 2pz, 3dxy, and 4fz3 orbitals!',
+          "Every orbital state is uniquely defined by three integers **(n, l, mₗ)**:\n\n• **n (Principal, 1..4)**: Energy level & shell radius.\n• **l (Angular Momentum, 0..n−1)**: Orbital shape — **s** (spherical, l=0), **p** (dumbbells, l=1), **d** (clovers, l=2), **f** (8-lobes, l=3)!\n• **mₗ (Magnetic, −l..+l)**: Spatial 3D orientation.",
+        actionPrompt: 'Use the n, l, ml steppers to jump between 1s, 2p_z, 3d_xy, and 4f_z³ orbitals!',
       },
       {
         id: 'orbit-nodes',
@@ -251,7 +252,7 @@ export const TUTORIAL_CURRICULUMS = {
         conceptTag: 'Nodal Structures',
         expression: 'THINKING',
         speech:
-          "Look closely at higher orbitals like **2s** or **3d**! You will notice hollow rings or planes where **no dots appear**.\n\nThese are **Nodes**—surfaces where the wavefunction **ψ = 0** and the probability of finding an electron is strictly zero, even though it exists on both sides!",
+          "Look closely at higher orbitals like **2s** or **3d**! You will notice hollow rings or planes where **no electron dots appear**.\n\nThese are **Nodes**—surfaces where the wavefunction **ψ(r, θ, φ) = 0** and the probability density is strictly zero, even though electrons exist on both sides!",
       },
       {
         id: 'orbit-quiz',
@@ -262,16 +263,16 @@ export const TUTORIAL_CURRICULUMS = {
           "Ready to claim your Quantum Mechanics badge?",
         quiz: {
           question:
-            'Why do all 3d orbitals (3dz2, 3dxz, 3dyz, 3dxy, 3dx2-y2) share the EXACT same radial probability graph P(r)?',
+            'Why do all 3d orbitals (3d_z², 3d_xz, 3d_yz, 3d_xy, 3d_{x²-y²}) share the EXACT same radial probability graph P(r)?',
           options: [
             'It is a graphical rendering bug',
-            'Because radial wavefunction R_nl(r) depends only on (n, l), while ml only alters angular 3D orientation',
+            'Because radial wavefunction Rₙₗ(r) depends only on (n, l), while mₗ only alters 3D angular orientation Yₗₘ(θ, φ)',
             'Because all electrons have the same mass',
             'Because Bohr radius is constant across all atoms',
           ],
           correctIndex: 1,
           explanation:
-            'Phenomenal! In hydrogen, the radial solution R_nl(r) is degenerate with respect to ml—orbitals with identical (n, l) have identical radial distribution curves!',
+            'Phenomenal! In hydrogen, the radial solution Rₙₗ(r) is degenerate with respect to mₗ—orbitals with identical (n, l) have identical radial distribution curves!',
         },
       },
     ],

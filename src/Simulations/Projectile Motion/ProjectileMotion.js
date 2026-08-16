@@ -111,12 +111,12 @@ export default function ProjectileMotion() {
       if (b >= 0) {
         str += `${y0 !== 0 ? '+ ' : ''}${bStr}x `;
       } else {
-        str += `- ${bStr}x `;
+        str += `− ${bStr}x `;
       }
-      str += `- ${aStr}x²`;
+      str += `− ${aStr}x²`;
     } else {
-      const x0Str = x0 > 0 ? `- ${x0.toFixed(1)}` : `+ ${Math.abs(x0).toFixed(1)}`;
-      str += `${y0.toFixed(1)} ${b >= 0 ? '+' : '-'} ${bStr}(x ${x0Str}) - ${aStr}(x ${x0Str})²`;
+      const x0Str = x0 > 0 ? `− ${x0.toFixed(1)}` : `+ ${Math.abs(x0).toFixed(1)}`;
+      str += `${y0.toFixed(1)} ${b >= 0 ? '+' : '−'} ${bStr}(x ${x0Str}) − ${aStr}(x ${x0Str})²`;
     }
 
     return {
@@ -125,6 +125,7 @@ export default function ProjectileMotion() {
       x0,
       y0,
       displayStr: str,
+      genericStr: 'y(x) = y₀ + tan(θ)·(x − x₀) − [g / (2v₀²cos²θ)]·(x − x₀)²',
     };
   }, [cannonPos.x, cannonPos.y, angleRad, initialSpeed, g]);
 
@@ -1025,6 +1026,9 @@ export default function ProjectileMotion() {
                 <div className="floating-math-formula-pill">
                   <span className="fn-header">Parabolic Trajectory Function</span>
                   <span className="fn-body">{parabolaEquation.displayStr}</span>
+                  <span className="fn-sub" style={{ fontSize: '9.5px', color: '#64748B', fontFamily: "'Fira Code', monospace" }}>
+                    y(x) = y₀ + tan(θ)·x − [g/(2v₀²cos²θ)]·x²
+                  </span>
                 </div>
               )}
 
@@ -2013,27 +2017,27 @@ export default function ProjectileMotion() {
               </div>
               <div className="equation-box">
                 <div className="eq-row">
-                  <span>x(t) = v₀·cos(θ)·t</span>
-                  <span className="eq-val">vx = {theoretical.v0x.toFixed(1)} m/s</span>
+                  <span>x(t) = v₀ · cos(θ) · t</span>
+                  <span className="eq-val">v₀ₓ = {theoretical.v0x.toFixed(1)} m/s</span>
                 </div>
                 <div className="eq-row">
-                  <span>y(t) = h₀ + v₀·sin(θ)·t - ½gt²</span>
-                  <span className="eq-val">vy₀ = {theoretical.v0y.toFixed(1)} m/s</span>
+                  <span>y(t) = y₀ + v₀ · sin(θ) · t − ½ g t²</span>
+                  <span className="eq-val">v₀ᵧ = {theoretical.v0y.toFixed(1)} m/s</span>
                 </div>
                 <div className="eq-row" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '4px' }}>
-                  <span>Apex Time t_apex = vy₀/g</span>
+                  <span>Apex Time: t_apex = v₀ᵧ / g</span>
                   <span className="eq-val">{theoretical.tApex.toFixed(2)} s</span>
                 </div>
                 <div className="eq-row">
-                  <span>Max Height H_max = h₀ + vy₀²/2g</span>
-                  <span className="eq-val" style={{ color: '#2563EB' }}>{theoretical.hMax.toFixed(2)} m</span>
+                  <span>Max Height: H_max = y₀ + v₀ᵧ² / (2g)</span>
+                  <span className="eq-val" style={{ color: '#2563EB', fontWeight: '800' }}>{theoretical.hMax.toFixed(2)} m</span>
                 </div>
                 <div className="eq-row">
-                  <span>Total Flight Time t_flight</span>
+                  <span>Total Flight Time: t_flight = [v₀ᵧ + √(v₀ᵧ² + 2gy₀)] / g</span>
                   <span className="eq-val">{theoretical.tFlight.toFixed(2)} s</span>
                 </div>
                 <div className="eq-row" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '4px' }}>
-                  <span style={{ fontWeight: '800' }}>Impact Range R</span>
+                  <span style={{ fontWeight: '800' }}>Impact Range: R = x₀ + v₀ₓ · t_flight</span>
                   <span className="eq-val" style={{ color: '#16A34A', fontWeight: '800' }}>
                     {theoretical.range.toFixed(2)} m
                   </span>

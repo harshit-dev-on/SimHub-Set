@@ -83,11 +83,20 @@ function ElectronClouding() {
     [transitionNi, transitionNf]
   );
 
+  // Subscript formatter
+  const toSub = (num) => {
+    const map = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '-': '₋', '+': '₊' };
+    return String(num).split('').map((c) => map[c] || c).join('');
+  };
+
   // Mathematical Wavefunction Formula String for Floating Pill
   const wavefunctionFormula = useMemo(() => {
     const orbType = l === 0 ? 's' : l === 1 ? 'p' : l === 2 ? 'd' : 'f';
-    const sub = `${n}${orbType}${m !== 0 ? (m > 0 ? `+${m}` : `${m}`) : ''}`;
-    return `ψ_${sub}(r, θ, φ) = R_${n}${l}(r) · Y_${l}${m}(θ, φ)`;
+    const mStr = m !== 0 ? (m > 0 ? `+${m}` : `${m}`) : '0';
+    return {
+      equation: `ψ${toSub(n)},${toSub(l)},${toSub(mStr)}(r, θ, φ) = R${toSub(n)},${toSub(l)}(r) · Y${toSub(l)},${toSub(mStr)}(θ, φ)`,
+      label: `${n}${orbType} (n = ${n}, l = ${l}, mₗ = ${m})`,
+    };
   }, [n, l, m]);
 
   // Synchronize (l, m) bounds when n changes
@@ -822,8 +831,8 @@ function ElectronClouding() {
             <div ref={mountRef} className="electron-3d-viewport">
               {/* Floating Mathematical Wavefunction Formula Badge */}
               <div className="floating-math-formula-pill">
-                <span className="fn-header">Quantum Wavefunction</span>
-                <span className="fn-body">{wavefunctionFormula}</span>
+                <span className="fn-header">State: {wavefunctionFormula.label}</span>
+                <span className="fn-body">{wavefunctionFormula.equation}</span>
               </div>
 
               {/* Floating Pan & Zoom HUD */}
@@ -1108,7 +1117,7 @@ function ElectronClouding() {
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'wavefunctions') && (
             <div className="bento-subcard surface-blue">
               <div className="card-top-row">
-                <h4 className="card-title-text">1. Radial Wavefunction R_{n}{l}(r)</h4>
+                <h4 className="card-title-text">1. Radial Wavefunction R{toSub(n)},{toSub(l)}(r)</h4>
                 <span className="doodle-badge">Amplitude ψ(r)</span>
               </div>
               <svg viewBox="0 0 320 120" className="kinematics-mini-svg">
@@ -1218,7 +1227,7 @@ function ElectronClouding() {
           {(activeAnalysisTab === 'all' || activeAnalysisTab === 'wavefunctions') && (
             <div className="bento-subcard surface-purple">
               <div className="card-top-row">
-                <h4 className="card-title-text">3. Angular Probability |Y_{l}{m}(θ, φ)|²</h4>
+                <h4 className="card-title-text">3. Angular Probability |Y{toSub(l)},{toSub(m)}(θ, φ)|²</h4>
                 <span className="doodle-badge">Polar Angle θ (0°–180°)</span>
               </div>
               <svg viewBox="0 0 320 120" className="kinematics-mini-svg">
