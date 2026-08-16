@@ -1,0 +1,584 @@
+/* ==========================================================================
+   SimHub Tutorial Companion (Duolingo-Style STEM Mascot & Guided Studio)
+   ========================================================================== */
+
+/* Main Overlay / Docked Container */
+.tutorial-companion-modal-overlay {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  max-width: 620px;
+  width: calc(100vw - 48px);
+  pointer-events: auto;
+  animation: slideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Card Container */
+.tutorial-dialog-card {
+  background: #FFFDF5;
+  border: 2px solid #E2D9C8;
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* --------------------------------------------------------------------------
+   1. Header & Segmented Progress Bar
+   -------------------------------------------------------------------------- */
+.tutorial-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px 18px;
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.6);
+  gap: 12px;
+}
+
+.tutorial-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.tutorial-progress-segments {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  max-width: 220px;
+}
+
+.progress-segment {
+  height: 8px;
+  flex: 1;
+  background: #E2E8F0;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.progress-segment.active {
+  background: #3B82F6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.progress-segment.completed {
+  background: #22C55E;
+}
+
+.step-counter-text {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #64748B;
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+}
+
+.tutorial-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.win-ctrl-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.win-ctrl-btn:hover {
+  background: #1E293B;
+  color: #FFFFFF;
+  transform: scale(1.08);
+}
+
+/* --------------------------------------------------------------------------
+   2. Mascot & Content Body
+   -------------------------------------------------------------------------- */
+.tutorial-body-grid {
+  display: flex;
+  padding: 16px 20px;
+  gap: 18px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.tutorial-character-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.character-nameplate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FEF08A;
+  border: 1px solid #EAB308;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  color: #854D0E;
+  text-align: center;
+}
+
+.character-nameplate strong {
+  font-size: 11px;
+  color: #713F12;
+}
+
+.tutorial-content-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tutorial-concept-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tutorial-concept-pill {
+  background: #22C55E;
+  color: #FFFFFF;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tutorial-lab-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+}
+
+.tutorial-step-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* Speech Dialogue Bubble */
+.tutorial-speech-bubble {
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.45;
+  position: relative;
+}
+
+.tutorial-speech-para {
+  margin: 0 0 8px 0;
+}
+
+.tutorial-speech-para:last-child {
+  margin-bottom: 0;
+}
+
+.speech-highlight {
+  color: #15803D;
+  font-weight: 800;
+}
+
+/* Action Prompt Card */
+.tutorial-action-prompt-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #EFF6FF;
+  border: 1.5px solid #93C5FD;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  color: #1E40AF;
+  line-height: 1.35;
+}
+
+.prompt-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Checkpoint Mini-Quiz (Duolingo Gamified)
+   -------------------------------------------------------------------------- */
+.tutorial-quiz-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #FAF8F0;
+  border: 1.5px solid #E2D9C8;
+  border-radius: 16px;
+  padding: 12px;
+  margin-top: 4px;
+}
+
+.quiz-question-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.quiz-icon {
+  font-size: 16px;
+}
+
+.quiz-question-text {
+  font-size: 12.5px;
+  color: #0F172A;
+  line-height: 1.35;
+}
+
+.quiz-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quiz-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quiz-option-btn:hover:not(.is-correct-answer) {
+  border-color: #3B82F6;
+  background: #F8FAFC;
+  transform: translateY(-1px);
+}
+
+.quiz-option-btn.selected {
+  border-color: #2563EB;
+  background: #EFF6FF;
+}
+
+.quiz-option-btn.is-correct-answer {
+  background: #DCFCE7;
+  border-color: #22C55E;
+  color: #15803D;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.25);
+  font-weight: 800;
+}
+
+.quiz-option-btn.is-wrong-answer {
+  background: #FEE2E2;
+  border-color: #EF4444;
+  color: #991B1B;
+}
+
+.option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #F1F5F9;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+.quiz-feedback-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  animation: slideUpFade 0.25s ease;
+}
+
+.quiz-feedback-banner.success {
+  background: #DCFCE7;
+  border: 1.5px solid #86EFAC;
+  color: #166534;
+}
+
+.quiz-feedback-banner.retry {
+  background: #FEF3C7;
+  border: 1.5px solid #FDE68A;
+  color: #92400E;
+}
+
+.feedback-emoji {
+  font-size: 18px;
+}
+
+.feedback-text-group strong {
+  font-size: 12px;
+  display: block;
+}
+
+.feedback-text-group p {
+  font-size: 11.5px;
+  margin: 2px 0 0 0;
+  line-height: 1.3;
+}
+
+/* --------------------------------------------------------------------------
+   4. Footer Actions
+   -------------------------------------------------------------------------- */
+.tutorial-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px 16px 20px;
+  border-top: 1.5px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.tutorial-nav-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: none;
+}
+
+.prev-btn {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+
+.prev-btn:hover:not(:disabled) {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.prev-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.next-btn {
+  background: #22C55E;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+}
+
+.next-btn:hover {
+  background: #16A34A;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.45);
+}
+
+.finish-btn {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+}
+
+.finish-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 22px rgba(245, 158, 11, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   5. Minimized Floating Widget Badge
+   -------------------------------------------------------------------------- */
+.tutorial-minimized-badge {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFDF5;
+  border: 2px solid #22C55E;
+  border-radius: 30px;
+  padding: 6px 14px 6px 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  animation: bounceFloat 3s infinite ease-in-out;
+  transition: transform 0.2s ease;
+}
+
+.tutorial-minimized-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.minimized-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.minimized-name {
+  font-size: 11.5px;
+  color: #15803D;
+  font-weight: 800;
+}
+
+.minimized-step {
+  font-size: 10px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.minimized-close-btn {
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.minimized-close-btn:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+}
+
+/* --------------------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------------------- */
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bounceFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Avatar SVG Keyframe Animations */
+.quark-character-body {
+  transform-origin: center bottom;
+  animation: breathingMascot 4s infinite ease-in-out;
+}
+
+@keyframes breathingMascot {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02) translateY(-1px);
+  }
+}
+
+.celebrating-state .quark-character-body {
+  animation: jumpCelebrate 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes jumpCelebrate {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.04);
+  }
+}
+
+.eureka-particles line {
+  animation: radiantGlow 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes radiantGlow {
+  0% {
+    opacity: 0.4;
+    stroke-width: 1.5;
+  }
+  100% {
+    opacity: 1;
+    stroke-width: 2.5;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Responsive Rules
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .tutorial-companion-modal-overlay {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    width: calc(100vw - 20px);
+    max-width: 100%;
+  }
+
+  .tutorial-dialog-card {
+    border-radius: 18px;
+  }
+
+  .tutorial-body-grid {
+    padding: 12px 14px;
+    gap: 12px;
+    max-height: 52vh;
+  }
+
+  .tutorial-character-col {
+    display: none; /* Hide large avatar on small mobile to maximize dialogue text */
+  }
+
+  .tutorial-step-title {
+    font-size: 15px;
+  }
+
+  .tutorial-speech-bubble {
+    font-size: 11.5px;
+    padding: 10px 12px;
+  }
+}

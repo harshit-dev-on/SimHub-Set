@@ -5,6 +5,7 @@ import GradientDescent from './Simulations/Gradient Descent/GradientDescent';
 import MontyHall from './Simulations/Monty Hall/MontyHall';
 import ProjectileMotion from './Simulations/Projectile Motion/ProjectileMotion';
 import ElectronClouding from './Simulations/Electron Clouding/ElectronClouding';
+import TutorialCompanion from './Tutorial/TutorialCompanion';
 
 const VALID_SIMULATIONS = [
   'home',
@@ -22,6 +23,7 @@ function getInitialSimulation() {
 function App() {
   const [activeSimulation, setActiveSimulation] = useState(getInitialSimulation);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   // Sync state with native fullscreen changes (e.g. Esc or F11 key)
   useEffect(() => {
@@ -130,7 +132,7 @@ function App() {
           <span className="brand-tagline">Visualizing Complex Concepts for Students</span>
         </div>
 
-        {/* Navigation Actions Group (Pills + Fullscreen Toggle) */}
+        {/* Navigation Actions Group (Pills + Fullscreen Toggle + Tutorial Mode) */}
         <div className="nav-actions-group">
           {/* Simulation Selector Pills */}
           <div className="sim-pills-container">
@@ -148,6 +150,18 @@ function App() {
               </button>
             ))}
           </div>
+
+          {/* Tutorial Mode Trigger Button */}
+          <button
+            type="button"
+            className={`tutorial-toggle-btn ${isTutorialOpen ? 'is-tutorial-active' : ''}`}
+            onClick={() => setIsTutorialOpen((prev) => !prev)}
+            title={isTutorialOpen ? 'Hide Tutorial Mode' : 'Start Interactive Tutorial with Professor Quark'}
+            aria-label="Toggle Interactive Tutorial Mode"
+          >
+            <span className="tutorial-btn-icon">🎓</span>
+            <span className="tutorial-btn-text">Tutorial Mode</span>
+          </button>
 
           {/* Fullscreen / Minimise Toggle Button */}
           <button
@@ -187,6 +201,13 @@ function App() {
         {activeSimulation === 'electron-clouding' && <ElectronClouding />}
       </main>
 
+      {/* Interactive Duolingo-Style Tutorial Mode Companion (Professor Quark) */}
+      <TutorialCompanion
+        activeSimulation={activeSimulation}
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+      />
+
       {/* Floating Minimise Button when in Fullscreen Mode */}
       {isFullscreen && (
         <button
@@ -206,3 +227,4 @@ function App() {
 }
 
 export default App;
+
