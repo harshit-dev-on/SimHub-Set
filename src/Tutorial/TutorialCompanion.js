@@ -6,6 +6,7 @@ import ProfessorQuarkAvatar from './ProfessorQuarkAvatar';
 export function TutorialCompanion({
   activeSimulation = 'home',
   isOpen = false,
+  onOpen = () => {},
   onClose = () => {},
 }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -26,8 +27,6 @@ export function TutorialCompanion({
     setIsQuizSubmitted(false);
     setIsQuizCorrect(false);
   }, [activeSimulation]);
-
-  if (!isOpen) return null;
 
   const handleNext = () => {
     if (currentStepIndex < totalSteps - 1) {
@@ -89,7 +88,28 @@ export function TutorialCompanion({
   };
 
   // --------------------------------------------------------------------------
-  // MINIMIZED FLOATING BADGE VIEW
+  // 1. DOCKED FLOATING LAUNCHER (When Tutorial is closed)
+  // --------------------------------------------------------------------------
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        className="piplu-floating-launcher-btn"
+        onClick={onOpen}
+        title="Learn with Professor Piplu 🐧 (Interactive Guide & Quizzes)"
+        aria-label="Open Interactive Tutorial with Professor Piplu"
+      >
+        <div className="launcher-avatar-container">
+          <ProfessorQuarkAvatar expression="EXPLAINING" size={36} />
+        </div>
+        <span className="launcher-text">Ask Piplu 🐧</span>
+        <span className="launcher-sparkle-badge">Guide</span>
+      </button>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. MINIMIZED FLOATING BADGE VIEW (When user clicks minimize '—')
   // --------------------------------------------------------------------------
   if (isMinimized) {
     return (
@@ -121,12 +141,12 @@ export function TutorialCompanion({
   }
 
   // --------------------------------------------------------------------------
-  // FULL DUOLINGO-STYLE TUTORIAL DIALOG CARD
+  // 3. FULL DUOLINGO-STYLE TUTORIAL DIALOG CARD
   // --------------------------------------------------------------------------
   return (
     <aside className="tutorial-companion-modal-overlay">
       <div className="tutorial-dialog-card surface-cream" role="dialog" aria-modal="false">
-        {/* 1. Header Bar with Segmented Progress */}
+        {/* Header Bar with Segmented Progress */}
         <div className="tutorial-dialog-header">
           <div className="tutorial-progress-container">
             <div className="tutorial-progress-segments">
@@ -161,14 +181,14 @@ export function TutorialCompanion({
               type="button"
               className="win-ctrl-btn close-btn"
               onClick={onClose}
-              title="Close Tutorial Mode"
+              title="Close Tutorial"
             >
               ✕
             </button>
           </div>
         </div>
 
-        {/* 2. Character Mascot & Interactive Dialogue Body */}
+        {/* Character Mascot & Interactive Dialogue Body */}
         <div className="tutorial-body-grid">
           {/* Character Avatar Column */}
           <div className="tutorial-character-col">
@@ -252,7 +272,7 @@ export function TutorialCompanion({
           </div>
         </div>
 
-        {/* 3. Bottom Action Bar */}
+        {/* Bottom Action Bar */}
         <div className="tutorial-dialog-footer">
           <button
             type="button"

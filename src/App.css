@@ -121,42 +121,6 @@
   border-radius: 4px;
 }
 
-/* Tutorial Mode Toggle Button */
-.tutorial-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: linear-gradient(135deg, #FEF08A 0%, #FDE047 100%);
-  border: 1.5px solid #EAB308;
-  padding: 5px 12px;
-  border-radius: var(--radius-full);
-  font-size: 11.5px;
-  font-weight: 800;
-  color: #713F12;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(234, 179, 8, 0.25);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  white-space: nowrap;
-}
-
-.tutorial-toggle-btn:hover {
-  background: linear-gradient(135deg, #FDE047 0%, #FACC15 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(234, 179, 8, 0.4);
-  color: #581C87;
-}
-
-.tutorial-toggle-btn.is-tutorial-active {
-  background: #22C55E;
-  border-color: #16A34A;
-  color: #FFFFFF;
-  box-shadow: 0 3px 12px rgba(34, 197, 94, 0.35);
-}
-
-.tutorial-btn-icon {
-  font-size: 13px;
-}
-
 /* Fullscreen / Minimise Toggle Button */
 .fullscreen-toggle-btn {
   display: flex;
@@ -433,12 +397,6 @@
   .sim-pill-btn {
     padding: 3px 7px;
     font-size: 10.5px;
-    flex-shrink: 0;
-  }
-
-  .tutorial-toggle-btn {
-    padding: 3px 8px;
-    font-size: 10px;
     flex-shrink: 0;
   }
 

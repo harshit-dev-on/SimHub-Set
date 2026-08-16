@@ -151,18 +151,6 @@ function App() {
             ))}
           </div>
 
-          {/* Tutorial Mode Trigger Button */}
-          <button
-            type="button"
-            className={`tutorial-toggle-btn ${isTutorialOpen ? 'is-tutorial-active' : ''}`}
-            onClick={() => setIsTutorialOpen((prev) => !prev)}
-            title={isTutorialOpen ? 'Hide Tutorial Mode' : 'Start Interactive Tutorial with Professor Piplu'}
-            aria-label="Toggle Interactive Tutorial Mode"
-          >
-            <span className="tutorial-btn-icon">🎓</span>
-            <span className="tutorial-btn-text">Tutorial Mode</span>
-          </button>
-
           {/* Fullscreen / Minimise Toggle Button */}
           <button
             type="button"
@@ -201,10 +189,11 @@ function App() {
         {activeSimulation === 'electron-clouding' && <ElectronClouding />}
       </main>
 
-      {/* Interactive Duolingo-Style Tutorial Mode Companion (Professor Quark) */}
+      {/* Interactive Duolingo-Style STEM Companion (Professor Piplu 🐧) */}
       <TutorialCompanion
         activeSimulation={activeSimulation}
         isOpen={isTutorialOpen}
+        onOpen={() => setIsTutorialOpen(true)}
         onClose={() => setIsTutorialOpen(false)}
       />
 

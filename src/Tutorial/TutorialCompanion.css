@@ -420,8 +420,57 @@
 }
 
 /* --------------------------------------------------------------------------
-   5. Minimized Floating Widget Badge
+   5. Floating Companion Launcher & Minimized Badge
    -------------------------------------------------------------------------- */
+.piplu-floating-launcher-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFDF5;
+  border: 2px solid #0284C7;
+  border-radius: 30px;
+  padding: 5px 14px 5px 6px;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.25), 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  animation: bounceFloat 3.5s infinite ease-in-out;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+}
+
+.piplu-floating-launcher-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 12px 32px rgba(2, 132, 199, 0.38);
+  border-color: #0369A1;
+}
+
+.launcher-avatar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.launcher-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0C4A6E;
+  letter-spacing: -0.01em;
+}
+
+.launcher-sparkle-badge {
+  background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%);
+  color: #78350F;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1.5px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .tutorial-minimized-badge {
   position: fixed;
   bottom: 20px;
