@@ -1,18 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Rounded Base Background -->
-  <rect width="64" height="64" rx="18" fill="#111216" />
+  <!-- Rounded Base Background Tile -->
+  <rect width="64" height="64" rx="16" fill="#111216" />
   
-  <!-- Subtle Grassy/Loss Curve -->
-  <path d="M 10 20 Q 32 52 54 20" stroke="#FAF2D8" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0.35" />
+  <!-- Subtle Glow Layer -->
+  <path d="M 10 22 Q 32 52 54 22" stroke="#66BB6A" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.25" />
   
-  <!-- Highlight Active Curve -->
-  <path d="M 12 22 Q 32 50 52 22" stroke="#66BB6A" stroke-width="4.5" stroke-linecap="round" fill="none" />
+  <!-- Exact Navbar Parabolic Curve -->
+  <path d="M 10 22 Q 32 52 54 22" stroke="#66BB6A" stroke-width="5.5" stroke-linecap="round" fill="none" />
   
-  <!-- Glowing Coral Gradient Descent Ball / Particle -->
-  <circle cx="32" cy="44" r="9" fill="#EE7258" opacity="0.4" />
-  <circle cx="32" cy="44" r="5.5" fill="#EE7258" stroke="#FFFFFF" stroke-width="2" />
+  <!-- Ball Outer Glow -->
+  <circle cx="32" cy="38" r="9" fill="#EE7258" opacity="0.35" />
   
-  <!-- Mini flag at minimum -->
-  <line x1="32" y1="44" x2="32" y2="28" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" />
-  <polygon points="32,28 42,32 32,36" fill="#F7D25A" />
+  <!-- Exact Navbar Coral Descent Ball -->
+  <circle cx="32" cy="38" r="6.5" fill="#EE7258" stroke="#FFFFFF" stroke-width="2.5" />
 </svg>
