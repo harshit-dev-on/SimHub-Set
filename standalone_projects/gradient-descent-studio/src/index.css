@@ -1,0 +1,103 @@
+/* Global Design Tokens & Typography */
+:root {
+  --bg-cream: #FAF2D8;
+  --bg-cream-soft: #FBF4DE;
+  --bg-cream-darker: #EFE5C3;
+  --bg-dark: #0D0E11;
+  --bg-dark-card: #16181D;
+  --bg-dark-secondary: #1F2228;
+  
+  --coral-card: #EE7258;
+  --coral-card-dark: #D85C42;
+  --coral-text: #3D130A;
+  
+  --yellow-card: #F7D25A;
+  --yellow-card-dark: #E4BD41;
+  --yellow-text: #3B2E05;
+  
+  --green-card: #C2EBB6;
+  --green-text: #163812;
+  
+  --blue-card: #A7C7F9;
+  --blue-text: #11284E;
+  
+  --cream-card: #FBF4DE;
+  --cream-text: #1F1F1F;
+  
+  --text-dark: #121316;
+  --text-dark-muted: #666970;
+  --text-light: #FFFFFF;
+  --text-light-muted: #8E929B;
+  
+  --border-dark: rgba(255, 255, 255, 0.1);
+  --border-light: rgba(0, 0, 0, 0.08);
+  
+  --radius-xs: 8px;
+  --radius-sm: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --radius-full: 9999px;
+  
+  --font-primary: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-hand: 'Caveat', 'Gaegu', cursive;
+  
+  --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-medium: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 20px 50px rgba(0, 0, 0, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-primary);
+  background-color: #0D0E11;
+  color: var(--text-light);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+input, textarea {
+  font-family: inherit;
+  border: none;
+  outline: none;
+  background: transparent;
+}

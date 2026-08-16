@@ -1,0 +1,582 @@
+/* ==========================================================================
+   Electron Clouding Simulation - Editorial Quantum Physics Studio
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Stage Card & Header
+   -------------------------------------------------------------------------- */
+.electron-stage-card {
+  background: #FFFDF5;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.electron-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.stage-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-status-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.status-dot.in-flight {
+  background: #38BDF8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+  animation: pulseGlow 1.5s infinite;
+}
+
+.stage-overlay-toggles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-chip {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.04);
+  color: #64748B;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-chip:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1E293B;
+}
+
+.toggle-chip.active {
+  background: #1E293B;
+  color: #FFFFFF;
+  border-color: #0F172A;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Visual Mode Toggle Pills */
+.visual-mode-toggle-pill {
+  display: flex;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px;
+  border-radius: var(--radius-full);
+  gap: 2px;
+}
+
+.vm-toggle-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  color: #555864;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.vm-toggle-btn:hover {
+  color: #111;
+}
+
+.vm-toggle-btn.active {
+  background: #15171D;
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   3D WebGL Canvas Viewport
+   -------------------------------------------------------------------------- */
+.electron-3d-viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  background: #090D16;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+  user-select: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.electron-3d-viewport:active {
+  cursor: grabbing;
+}
+
+.electron-3d-viewport canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  pointer-events: none;
+}
+
+/* Floating Mathematical Wavefunction Formula Badge */
+.floating-math-formula-pill {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1.5px solid rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.floating-math-formula-pill .fn-header {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.floating-math-formula-pill .fn-body {
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #38BDF8;
+}
+
+/* Floating 3D HUD (Zoom In, Zoom Out, Fit) */
+.floating-viewport-hud {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 3px 5px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.hud-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  color: #F8FAFC;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.hud-btn-reset {
+  color: #38BDF8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Single-Row Bottom Controls Toolbar
+   -------------------------------------------------------------------------- */
+.quantum-stepper-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.quantum-stepper-label {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #1E293B;
+  white-space: nowrap;
+}
+
+.quantum-stepper-btn {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #1E293B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quantum-stepper-btn:hover:not(:disabled) {
+  background: #E2E8F0;
+  border-color: #94A3B8;
+  transform: translateY(-1px);
+}
+
+.quantum-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.quantum-stepper-val {
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 22px;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Analysis Pane Subcards & Bento Design
+   -------------------------------------------------------------------------- */
+.bento-subcard {
+  background: #FFFDF5;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.bento-subcard.surface-blue {
+  background: #EFF6FF;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.bento-subcard.surface-emerald {
+  background: #F0FDF4;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.bento-subcard.surface-purple {
+  background: #FAF5FF;
+  border-color: rgba(168, 85, 247, 0.2);
+}
+
+.bento-subcard.surface-yellow {
+  background: #FEF9C3;
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title-text {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0;
+}
+
+.doodle-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.06);
+  color: #475569;
+  font-family: 'Fira Code', monospace;
+}
+
+/* Preset Orbitals Grid */
+.presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 5px;
+}
+
+.preset-chip {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+  transform: translateY(-1px);
+}
+
+.preset-chip.active {
+  background: #DBEAFE;
+  border-color: #3B82F6;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
+}
+
+.preset-chip-title {
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #1E293B;
+}
+
+.preset-chip-type {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+}
+
+/* Phase Legend Bar */
+.phase-legend-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #0F172A;
+  border-radius: 8px;
+  color: #F8FAFC;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.phase-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.phase-dot.positive {
+  background: #38BDF8;
+  box-shadow: 0 0 6px #38BDF8;
+}
+
+.phase-dot.negative {
+  background: #F43F5E;
+  box-shadow: 0 0 6px #F43F5E;
+}
+
+/* Mini Quantum SVG Charts */
+.kinematics-mini-svg {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
+/* Spectroscopy Jump Box */
+.spectral-jump-box {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.spectral-transition-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-weight: 800;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.spectral-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.spectral-stat-tile {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label-tiny {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+}
+
+.stat-value-bold {
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+/* Nodal List Items */
+.nodal-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.nodal-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile & Touch Responsive Overrides
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  .electron-stage-header {
+    padding: 4px 8px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .stage-badge-group {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .stage-overlay-toggles {
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .toggle-chip {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .floating-math-formula-pill {
+    top: 6px;
+    right: 6px;
+    padding: 3px 8px;
+    max-width: 80%;
+  }
+
+  .floating-math-formula-pill .fn-header {
+    font-size: 8px;
+  }
+
+  .floating-math-formula-pill .fn-body {
+    font-size: 10px;
+  }
+
+  .floating-viewport-hud {
+    bottom: 6px;
+    right: 6px;
+    gap: 3px;
+  }
+
+  .hud-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
+  .hud-btn-reset {
+    width: auto;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .quantum-stepper-item {
+    gap: 2px;
+  }
+
+  .quantum-stepper-label {
+    font-size: 10.5px;
+  }
+
+  .quantum-stepper-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+  }
+
+  .quantum-stepper-val {
+    font-size: 11px;
+    min-width: 16px;
+  }
+
+  .presets-grid {
+    grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+    gap: 4px;
+  }
+
+  .preset-chip {
+    padding: 4px 6px;
+  }
+
+  .preset-chip-title {
+    font-size: 11.5px;
+  }
+
+  .kinematics-mini-svg {
+    height: 100px;
+  }
+}
